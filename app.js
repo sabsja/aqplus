@@ -253,6 +253,10 @@ document.querySelector("[data-admin-open]").addEventListener("click", openAdminL
 document.querySelector("[data-admin-login-form]").addEventListener("submit", async (event) => {
   event.preventDefault();
   const status = $("admin-login-status");
+  if (!status) {
+    console.error("Missing #admin-login-status in the admin login form.");
+    return;
+  }
   status.textContent = "Signing in...";
   try {
     await signInWithEmailAndPassword(auth, $("admin-email").value.trim(), $("admin-password").value);
