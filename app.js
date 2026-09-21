@@ -919,7 +919,15 @@ function pagePost(r) {
 function pageAbout() {
   const node = cloneTemplate("tpl-about");
   fillCrumbs(slot(node, "crumbs"), [{ name: "Home", href: href.home() }, { name: "About" }]);
-  slot(node, "portrait").appendChild(icon("seedling", 64));
+  const portrait = slot(node, "portrait");
+  const portraitImage = el("img", "portrait-image");
+  portraitImage.src = "profile.jpg";
+  portraitImage.alt = "Ann";
+  portraitImage.addEventListener("error", () => {
+    portraitImage.remove();
+    portrait.appendChild(icon("seedling", 64));
+  }, { once: true });
+  portrait.appendChild(portraitImage);
 
   if (settings.about) {
     const box = slot(node, "about-text");

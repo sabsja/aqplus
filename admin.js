@@ -512,7 +512,47 @@ function updateWordCount() {
     ? "0 words"
     : `${words} ${words === 1 ? "word" : "words"} · ${readMinutes($("post-body").value)} min read`;
 }
-$("post-body").addEventListener("input", updateWordCount);
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+function markdownToHtml(text) {
+  return text.split(/\n{2,}/).filter((block) => block.trim()).map((raw) => {
+    const lines = raw.trim().split("\n");
+    const inline = (value) => escapeHtml(value)
+      .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    if (raw.startsWith("## ")) return `<h3>${inline(raw.slice(3))}</h3>`;
+    if (raw.startsWith("> ")) return `<blockquote>${inline(lines.map((line) => line.replace(/^>\s?/, "")).join(" "))}</blockquote>`;
+    if (lines.every((line) => line.startsWith("- "))) return `<ul>${lines.map((line) => `<li>${inline(line.slice(2))}</li>`).join("")}</ul>`;
+    return `<p>${lines.map(inline).join("<br>")}</p>`;
+  }).join("");
+}
+
+function nodeToMarkdown(node) {
+  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue;
+  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+  const content = [...node.childNodes].map(nodeToMarkdown).join("");
+  if (node.tagName === "BR") return "\n";
+  if (node.tagName === "STRONG" || node.tagName === "B") return `**${content}**`;
+  if (node.tagName === "EM" || node.tagName === "I") return `*${content}*`;
+  if (node.tagName === "A") return `[${content}](${node.href})`;
+  if (node.tagName === "H3") return `## ${content}\n\n`;
+  if (node.tagName === "BLOCKQUOTE") return `> ${content}\n\n`;
+  if (node.tagName === "LI") return `- ${content}\n`;
+  if (node.tagName === "UL") return `${content}\n`;
+  if (node.tagName === "P" || node.tagName === "DIV") return `${content}\n\n`;
+  return content;
+}
+
+function syncBodyMarkdown() {
+  $("post-body").value = [...$("post-body-editor").childNodes].map(nodeToMarkdown).join("").trim();
+  updateWordCount();
+}
+
+$("post-body-editor").addEventListener("input", syncBodyMarkdown);
 
 // ----- Formatting buttons above the body box -----
 document.querySelectorAll(".fmt").forEach((btn) => {
@@ -520,29 +560,16 @@ document.querySelectorAll(".fmt").forEach((btn) => {
 });
 
 function applyFormat(kind) {
-  const box = $("post-body");
-  const start = box.selectionStart;
-  const end = box.selectionEnd;
-  const selected = box.value.slice(start, end);
-  const before = box.value.slice(0, start);
-  let insert = "";
-
-  if (kind === "bold") insert = `**${selected || "bold text"}**`;
-  else if (kind === "italic") insert = `*${selected || "italic text"}*`;
-  else if (kind === "link") insert = `[${selected || "link text"}](https://)`;
-  else {
-    // Headings, quotes and lists need to start on their own paragraph
-    const lead = start === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
-    if (kind === "heading") insert = `${lead}## ${selected || "Heading"}\n\n`;
-    if (kind === "quote") insert = `${lead}> ${selected || "Quote"}\n\n`;
-    if (kind === "list") {
-      insert = lead + (selected || "List item").split("\n").map((line) => `- ${line}`).join("\n") + "\n\n";
-    }
-  }
-
-  box.setRangeText(insert, start, end, "end");
-  box.focus();
-  updateWordCount();
+  const editor = $("post-body-editor");
+  editor.focus();
+  if (kind === "heading") document.execCommand("formatBlock", false, "h3");
+  else if (kind === "quote") document.execCommand("formatBlock", false, "blockquote");
+  else if (kind === "link") {
+    const url = window.prompt("Paste the https:// link");
+    if (url && url.startsWith("https://")) document.execCommand("createLink", false, url);
+  } else if (kind === "list") document.execCommand("insertUnorderedList", false);
+  else document.execCommand(kind, false);
+  syncBodyMarkdown();
 }
 
 // ----- Save (new post or edited post) -----
@@ -603,6 +630,7 @@ $("post-form").addEventListener("submit", async (event) => {
 
 function resetForm() {
   $("post-form").reset();
+  $("post-body-editor").replaceChildren();
   editingId = null;
   $("editor-heading").textContent = "New post";
   $("cancel-edit").hidden = true;
@@ -622,6 +650,7 @@ function startEditing(post) {
   $("post-mood").value = post.mood || "";
   $("post-summary").value = post.summary || "";
   $("post-body").value = post.body || "";
+  $("post-body-editor").innerHTML = markdownToHtml(post.body || "");
   $("post-embed").value = post.embedUrl || "";
   $("post-link").value = post.linkUrl || "";
   $("post-cover").value = post.coverUrl || "";

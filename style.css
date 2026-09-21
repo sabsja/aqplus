@@ -847,6 +847,13 @@ a { color: var(--accent); }
   color: var(--accent);
 }
 
+.portrait-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .about-portrait .icon svg { width: 68px; height: 68px; }
 
 .about h1, .about h2 { margin: 0 0 0.6rem; font-size: 2rem; }
@@ -1020,6 +1027,25 @@ textarea {
 }
 
 textarea { resize: vertical; }
+
+.rich-editor {
+  min-height: 20rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--sage-400);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.6;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.rich-editor:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage-400) 35%, transparent); }
+.rich-editor:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+.rich-editor p, .rich-editor h3, .rich-editor blockquote { margin: 0 0 0.8rem; }
+.rich-editor blockquote { padding-left: 1rem; border-left: 3px solid var(--sage-400); color: var(--muted); }
+.rich-editor ul { margin: 0 0 0.8rem; }
 
 .field-row {
   display: grid;
