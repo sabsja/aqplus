@@ -182,6 +182,57 @@ function openAdminEditor(post) {
   $("admin-body").value = post?.body || "";
   $("admin-pinned").checked = Boolean(post?.pinned);
   $("admin-post-status").textContent = "";
+  setAdminView("posts");
+}
+
+function setAdminView(name) {
+  document.querySelectorAll("[data-admin-view]").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.adminView === name)));
+  document.querySelectorAll("[data-admin-panel]").forEach((panel) => { panel.hidden = panel.dataset.adminPanel !== name; });
+  if (name === "site") loadAdminSite();
+}
+
+function renderAdminFolders() {
+  const list = document.querySelector("[data-admin-folder-list]");
+  if (!list) return;
+  list.replaceChildren();
+  tree.flat().forEach(({ folder, depth }) => {
+    const item = el("li", "admin-mini-item");
+    item.style.paddingLeft = `${depth * 0.9}rem`;
+    item.append(el("span", "", `${folder.icon || "🌿"} ${folder.name}`));
+    const actions = el("span", "admin-mini-actions");
+    const rename = el("button", "btn ghost small", "Rename");
+    rename.type = "button";
+    rename.addEventListener("click", async () => {
+      const name = (window.prompt("New folder name", folder.name) || "").trim();
+      if (!name || name === folder.name) return;
+      await updateDoc(doc(db, "folders", folder.id), { name });
+      await loadData();
+      loadAdminSite();
+    });
+    const remove = el("button", "btn danger small", "Delete");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      if (tree.children(folder.id).length || posts.some((post) => post.folderId === folder.id)) {
+        document.querySelector("[data-admin-site-status]").textContent = "Move its posts and child folders before deleting it.";
+        return;
+      }
+      if (!window.confirm(`Delete ${folder.name}?`)) return;
+      await deleteDoc(doc(db, "folders", folder.id));
+      await loadData();
+      loadAdminSite();
+    });
+    actions.append(rename, remove);
+    item.appendChild(actions);
+    list.appendChild(item);
+  });
+}
+
+function loadAdminSite() {
+  $("admin-tagline").value = settings.tagline || "";
+  $("admin-about").value = settings.about || "";
+  $("admin-announcement").value = settings.announcement || "";
+  $("admin-site-status").textContent = "";
+  renderAdminFolders();
 }
 
 function openAdminLogin() {
@@ -216,6 +267,34 @@ document.querySelector("[data-admin-login-form]").addEventListener("submit", asy
 });
 document.querySelector("[data-admin-signout]").addEventListener("click", () => signOut(auth));
 document.querySelector("[data-admin-new]").addEventListener("click", () => openAdminEditor(null));
+document.querySelectorAll("[data-admin-view]").forEach((button) => button.addEventListener("click", () => setAdminView(button.dataset.adminView)));
+document.querySelector("[data-admin-site-form]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = { tagline: $("admin-tagline").value.trim(), about: $("admin-about").value.trim(), announcement: $("admin-announcement").value.trim() };
+  try {
+    await setDoc(doc(db, "settings", "site"), data, { merge: true });
+    Object.assign(settings, data);
+    setupAnnouncement();
+    $("admin-site-status").textContent = "Profile saved.";
+  } catch (error) {
+    console.error(error);
+    $("admin-site-status").textContent = "Couldn't save the profile.";
+  }
+});
+document.querySelector("[data-admin-folder-form]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = $("admin-folder-name").value.trim();
+  if (!name) return;
+  try {
+    await addDoc(collection(db, "folders"), { name, parentId: null, icon: $("admin-folder-icon").value.trim() || "🌿", color: "sage", createdAt: serverTimestamp() });
+    event.target.reset();
+    await loadData();
+    loadAdminSite();
+  } catch (error) {
+    console.error(error);
+    $("admin-site-status").textContent = "Couldn't add the folder.";
+  }
+});
 document.querySelector("[data-admin-post-form]").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!isAdmin) return;

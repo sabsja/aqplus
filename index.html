@@ -99,17 +99,32 @@
         </form>
       </div>
       <div id="admin-editor-view" class="admin-editor-view" data-admin-editor-view hidden>
-        <div class="feature-panel-head"><h2 data-admin-editor-title>New post</h2><button class="btn ghost small" type="button" data-admin-signout>Sign out</button></div>
-        <form class="feature-form" data-admin-post-form>
+        <div class="feature-panel-head"><h2>Admin garden</h2><button class="btn ghost small" type="button" data-admin-signout>Sign out</button></div>
+        <div class="admin-view-tabs" role="tablist"><button class="tab" type="button" data-admin-view="posts" aria-selected="true">Posts</button><button class="tab" type="button" data-admin-view="site" aria-selected="false">Site profile</button></div>
+        <div data-admin-panel="posts">
+          <div class="feature-panel-head"><h3 data-admin-editor-title>New post</h3><button class="btn ghost small" type="button" data-admin-new>New post</button></div>
+          <form class="feature-form" data-admin-post-form>
           <label class="field"><span>Title</span><input data-admin-title maxlength="120" required></label>
           <label class="field"><span>Subtitle</span><input data-admin-subtitle maxlength="200"></label>
           <div class="field-row"><label class="field"><span>Folder</span><select data-admin-folder></select></label><label class="field"><span>Status</span><select data-admin-status><option value="published">Published</option><option value="draft">Draft</option></select></label></div>
           <label class="field"><span>Summary</span><textarea data-admin-summary rows="2"></textarea></label>
           <label class="field"><span>Post</span><textarea data-admin-body rows="9" required></textarea></label>
           <label class="check"><input data-admin-pinned type="checkbox"><span>Featured</span></label>
-          <div class="button-row"><button class="btn primary" type="submit">Save post</button><button class="btn ghost" type="button" data-admin-new>New post</button></div>
+          <div class="button-row"><button class="btn primary" type="submit">Save post</button></div>
           <p class="form-message" data-admin-post-status></p>
-        </form>
+          </form>
+        </div>
+        <div data-admin-panel="site" hidden>
+          <form class="feature-form" data-admin-site-form>
+            <h3>Profile and site</h3>
+            <label class="field"><span>Tagline</span><input data-admin-tagline maxlength="160"></label>
+            <label class="field"><span>About me</span><textarea data-admin-about rows="5"></textarea></label>
+            <label class="field"><span>Announcement</span><input data-admin-announcement maxlength="160"></label>
+            <button class="btn primary" type="submit">Save profile</button>
+            <p class="form-message" data-admin-site-status></p>
+          </form>
+          <div class="admin-folders"><h3>Folders</h3><form class="admin-folder-add" data-admin-folder-form><input data-admin-folder-name placeholder="New folder name" required><input data-admin-folder-icon maxlength="4" placeholder="🌿"><button class="btn primary small" type="submit">Add</button></form><ul class="admin-mini-list" data-admin-folder-list></ul></div>
+        </div>
       </div>
     </section>
   </div>

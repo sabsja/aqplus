@@ -922,6 +922,18 @@ a { color: var(--accent); }
 .admin-dialog { position: relative; z-index: 1; width: min(100%, 560px); max-height: min(92vh, 760px); overflow: auto; padding: 1.5rem; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); box-shadow: 0 24px 70px -24px rgba(35, 53, 42, 0.55); }
 .admin-close { position: absolute; top: 0.85rem; right: 0.85rem; }
 .admin-dialog h2 { margin-top: 0; padding-right: 2rem; }
+.admin-view-tabs { display: flex; gap: 0.4rem; margin: 0.8rem 0 1.1rem; border-bottom: 1px solid var(--line); }
+.admin-view-tabs .tab { padding: 0.35rem 0.75rem; border: 0; border-radius: 8px 8px 0 0; background: transparent; font-size: 0.88rem; }
+.admin-view-tabs .tab[aria-selected="true"] { background: var(--surface-2); color: var(--accent); }
+.admin-dialog h3 { margin: 0 0 0.7rem; color: var(--accent); font-family: var(--font-display); font-weight: 400; }
+.admin-folders { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.admin-folder-add { display: grid; grid-template-columns: 1fr 4rem auto; gap: 0.4rem; align-items: center; }
+.admin-folder-add input { min-width: 0; }
+.admin-mini-list { display: grid; gap: 0.35rem; margin: 0.8rem 0 0; padding: 0; list-style: none; }
+.admin-mini-item { display: flex; align-items: center; gap: 0.5rem; min-width: 0; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+.admin-mini-item > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-mini-actions { display: flex; gap: 0.25rem; }
+.admin-mini-actions .btn { padding: 0.18rem 0.45rem; font-size: 0.74rem; }
 .is-admin .footer-admin { color: var(--accent); font-weight: 600; }
 
 /* ---------- Post page (Substack-style reading) ---------- */
