@@ -1,4 +1,4 @@
-const CACHE_NAME = "haqin-shell-v5";
+const CACHE_NAME = "haqin-shell-v6";
 const SHELL = [
   "./",
   "./index.html",

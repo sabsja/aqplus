@@ -54,6 +54,7 @@
         <summary class="menu-toggle" aria-label="Open features menu">☰</summary>
         <div class="menu-panel">
           <strong>My features</strong>
+          <button class="menu-admin-profile" type="button" data-admin-open>✦ Main profile</button>
           <a href="#/klase" data-nav="klase">Klase</a>
           <a href="#/garden" data-nav="garden">Garden</a>
           <a href="#/tasks" data-nav="tasks">Tasks & reminders</a>
@@ -95,7 +96,7 @@
           <label class="field"><span>Email</span><input data-admin-email type="email" autocomplete="email" required></label>
           <label class="field"><span>Password</span><input data-admin-password type="password" autocomplete="current-password" required></label>
           <button class="btn primary" type="submit">Sign in</button>
-          <p class="form-message" data-admin-login-status></p>
+          <p id="admin-login-status" class="form-message" data-admin-login-status></p>
         </form>
       </div>
       <div id="admin-editor-view" class="admin-editor-view" data-admin-editor-view hidden>
@@ -490,6 +491,6 @@
     </section>
   </template>
 
-  <script type="module" src="app.js?v=personal-garden2"></script>
+  <script type="module" src="app.js?v=personal-admin1"></script>
 </body>
 </html>

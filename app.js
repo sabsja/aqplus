@@ -236,6 +236,7 @@ function loadAdminSite() {
 }
 
 function openAdminLogin() {
+  document.querySelector(".feature-menu")?.removeAttribute("open");
   const modal = $("admin-modal");
   modal.hidden = false;
   $("admin-login-view").hidden = isAdmin;
@@ -248,6 +249,7 @@ $("admin-login").addEventListener("click", () => {
   else openAdminLogin();
 });
 document.querySelectorAll("[data-admin-close]").forEach((node) => node.addEventListener("click", closeAdminModal));
+document.querySelector("[data-admin-open]").addEventListener("click", openAdminLogin);
 document.querySelector("[data-admin-login-form]").addEventListener("submit", async (event) => {
   event.preventDefault();
   const status = $("admin-login-status");

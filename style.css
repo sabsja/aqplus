@@ -199,6 +199,9 @@ a { color: var(--accent); }
 .menu-panel strong { padding: 0.25rem 0.5rem 0.45rem; font-size: 0.85rem; color: var(--muted); }
 .menu-panel a { padding: 0.45rem 0.5rem; border: 0; border-radius: 6px; }
 .menu-panel a:hover, .menu-panel a[aria-current="page"] { background: var(--surface-2); border: 0; }
+.menu-admin-profile { display: none; width: 100%; padding: 0.45rem 0.5rem; border: 0; border-radius: 6px; background: var(--surface-2); color: var(--accent); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.menu-admin-profile:hover { background: var(--sage-200); }
+.is-admin .menu-admin-profile { display: block; }
 .install-app { white-space: nowrap; }
 
 /* Thin green line that sweeps across the top when you change page */
