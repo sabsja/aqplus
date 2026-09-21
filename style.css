@@ -1118,17 +1118,23 @@ textarea { resize: vertical; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 760px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 1.25rem 1rem;
+  padding: 1.25rem 1.5rem;
 }
+.admin-brand { display: inline-flex; align-items: center; gap: 0.65rem; color: var(--accent); text-decoration: none; }
+.admin-brand-mark { display: grid; place-items: center; width: 2.35rem; height: 2.35rem; border-radius: 50%; background: var(--surface-2); font-size: 1.25rem; }
+.admin-brand strong { display: block; font-family: var(--font-display); font-size: 1.35rem; font-weight: 400; line-height: 1; }
+.admin-brand small { display: block; margin-top: 0.18rem; color: var(--muted); font-size: 0.75rem; }
+.admin-bar-actions { display: flex; align-items: center; gap: 0.85rem; }
+.admin-view-link { color: var(--accent); font-size: 0.9rem; text-underline-offset: 3px; }
 
 .admin-main { padding: 0 1rem 4rem; }
 
 .tabs {
   display: flex;
   gap: 0.4rem;
-  max-width: 760px;
+  max-width: 1040px;
   margin: 0 auto 1.25rem;
   overflow-x: auto;
 }
@@ -1803,6 +1809,8 @@ textarea { resize: vertical; }
 }
 
 @media (max-width: 640px) {
+  .admin-bar { align-items: flex-start; gap: 0.8rem; padding: 1rem; }
+  .admin-bar-actions { align-items: flex-end; flex-direction: column; gap: 0.35rem; }
   .topbar { flex-wrap: wrap; row-gap: 0.5rem; }
   .searchbox.topsearch { order: 3; flex-basis: 100%; max-width: none; margin-left: 0; }
   .topnav { margin-left: auto; }

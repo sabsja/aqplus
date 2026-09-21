@@ -249,7 +249,6 @@ $("admin-login").addEventListener("click", () => {
   else openAdminLogin();
 });
 document.querySelectorAll("[data-admin-close]").forEach((node) => node.addEventListener("click", closeAdminModal));
-document.querySelector("[data-admin-open]").addEventListener("click", openAdminLogin);
 document.querySelector("[data-admin-login-form]").addEventListener("submit", async (event) => {
   event.preventDefault();
   const status = $("admin-login-status");
@@ -273,34 +272,6 @@ document.querySelector("[data-admin-login-form]").addEventListener("submit", asy
 });
 document.querySelector("[data-admin-signout]").addEventListener("click", () => signOut(auth));
 document.querySelector("[data-admin-new]").addEventListener("click", () => openAdminEditor(null));
-document.querySelectorAll("[data-admin-view]").forEach((button) => button.addEventListener("click", () => setAdminView(button.dataset.adminView)));
-document.querySelector("[data-admin-site-form]").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const data = { tagline: $("admin-tagline").value.trim(), about: $("admin-about").value.trim(), announcement: $("admin-announcement").value.trim() };
-  try {
-    await setDoc(doc(db, "settings", "site"), data, { merge: true });
-    Object.assign(settings, data);
-    setupAnnouncement();
-    $("admin-site-status").textContent = "Profile saved.";
-  } catch (error) {
-    console.error(error);
-    $("admin-site-status").textContent = "Couldn't save the profile.";
-  }
-});
-document.querySelector("[data-admin-folder-form]").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const name = $("admin-folder-name").value.trim();
-  if (!name) return;
-  try {
-    await addDoc(collection(db, "folders"), { name, parentId: null, icon: $("admin-folder-icon").value.trim() || "🌿", color: "sage", createdAt: serverTimestamp() });
-    event.target.reset();
-    await loadData();
-    loadAdminSite();
-  } catch (error) {
-    console.error(error);
-    $("admin-site-status").textContent = "Couldn't add the folder.";
-  }
-});
 document.querySelector("[data-admin-post-form]").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!isAdmin) return;
@@ -311,11 +282,12 @@ document.querySelector("[data-admin-post-form]").addEventListener("submit", asyn
   };
   const status = $("admin-post-status");
   try {
+    let savedId = adminEditingId;
     if (adminEditingId) await updateDoc(doc(db, "posts", adminEditingId), { ...data, updatedAt: serverTimestamp() });
-    else await addDoc(collection(db, "posts"), { ...data, views: 0, reactions: 0, createdAt: serverTimestamp(), publishedAt: data.status === "published" ? serverTimestamp() : null });
-    status.textContent = "Post saved.";
+    else savedId = (await addDoc(collection(db, "posts"), { ...data, views: 0, reactions: 0, createdAt: serverTimestamp(), publishedAt: data.status === "published" ? serverTimestamp() : null })).id;
     await loadData();
-    openAdminEditor(null);
+    openAdminEditor(posts.find((post) => post.id === savedId) || null);
+    status.textContent = "Post saved. Your text is still here.";
   } catch (error) {
     console.error(error);
     status.textContent = "Couldn't save the post. Check your Firebase permissions.";
