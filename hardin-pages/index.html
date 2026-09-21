@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Haqin</title>
+  <meta name="description" content="Haqin: designs, projects, article entries, planted as I make them.">
+
+  <!-- Seedling favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F5C3E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21v-9'/%3E%3Cpath d='M12 13C7.5 13 5 10.5 5 6.5c4.5 0 7 2.5 7 6.5z' fill='%23A3BC91'/%3E%3Cpath d='M12 11c0-4 2.5-6.5 7-6.5 0 4-2.5 6.5-7 6.5z' fill='%23A3BC91'/%3E%3Cpath d='M8 21h8'/%3E%3C/svg%3E">
+
+  <!-- Remember day / night mode before the page paints (stops a flash) -->
+  <script>
+    try { if (localStorage.getItem("Haqin-theme") === "night") document.documentElement.dataset.theme = "night"; } catch (e) {}
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Young+Serif&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#view">Skip to content</a>
+
+  <!-- Thin green line that sweeps across the top when you change page -->
+  <div id="route-bar" class="route-bar" aria-hidden="true"></div>
+  <!-- Reading progress (only used on post pages) -->
+  <div id="read-progress" class="read-progress" aria-hidden="true"></div>
+
+  <!-- ===== Top bar (on every page) ===== -->
+  <nav class="topbar" aria-label="Main">
+    <a class="brand" href="#/" aria-label="Haqin home">
+      <span class="brand-icon" id="brand-icon"></span>
+      <span class="brand-name">Haqin</span>
+    </a>
+
+    <label class="searchbox topsearch">
+      <span id="search-icon"></span>
+      <input id="search" type="search" placeholder="Search posts" aria-label="Search posts" autocomplete="off">
+    </label>
+
+    <div class="topnav">
+      <a href="#/" data-nav="home">Home</a>
+      <a href="#/about" data-nav="about">About</a>
+      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch to night mode"></button>
+    </div>
+  </nav>
+
+  <!-- ===== The current page is drawn in here ===== -->
+  <main id="view" class="view" tabindex="-1">
+    <p class="status">Loading Haqin…</p>
+  </main>
+
+  <!-- ===== Footer (on every page) ===== -->
+  <footer class="site-footer">
+    <p id="visit-count" class="visit-count"></p>
+    <p>Ann &copy; 2026 Haqin. Little Corner .</p>
+  </footer>
+<!-- =====================================================
+       Page templates. app.js copies one of these into <main>
+       whenever you move to a new page.
+       ===================================================== -->
+
+  <!-- ---------- Home ---------- -->
+  <template id="tpl-home">
+    <header class="hero">
+      <div class="hero-text">
+        <h1>Haqin</h1>
+        <p class="tagline" data-slot="tagline">Designs, projects, and article entries, planted here as I make them.</p>
+        <p class="hero-note">Haqin hardin</p>
+      </div>
+
+      <!-- A small garden that draws itself once when the page opens -->
+      <svg class="botanical" viewBox="0 0 320 280" aria-hidden="true">
+        <circle class="sun" cx="262" cy="48" r="26" />
+        <g transform="translate(50 10)">
+          <path pathLength="1" d="M100 252 C98 200 104 140 98 34" />
+          <path class="leaf" pathLength="1" d="M99 205 C62 202 40 178 38 150 C72 150 96 172 99 205 Z" />
+          <path class="leaf" pathLength="1" d="M100 175 C138 172 160 148 162 120 C128 120 103 142 100 175 Z" />
+          <path class="leaf" pathLength="1" d="M99 135 C68 130 50 108 50 82 C80 84 98 106 99 135 Z" />
+          <path class="leaf" pathLength="1" d="M99 98 C126 94 144 76 146 52 C118 54 101 72 99 98 Z" />
+          <path class="leaf" pathLength="1" d="M98 34 C84 24 86 10 98 4 C112 12 112 26 98 34 Z" />
+        </g>
+        <g transform="translate(10 91) scale(.68)">
+          <path pathLength="1" d="M100 252 C98 200 104 140 98 34" />
+          <path class="leaf" pathLength="1" d="M99 205 C62 202 40 178 38 150 C72 150 96 172 99 205 Z" />
+          <path class="leaf" pathLength="1" d="M100 175 C138 172 160 148 162 120 C128 120 103 142 100 175 Z" />
+          <path class="leaf" pathLength="1" d="M99 135 C68 130 50 108 50 82 C80 84 98 106 99 135 Z" />
+          <path class="leaf" pathLength="1" d="M98 34 C84 24 86 10 98 4 C112 12 112 26 98 34 Z" />
+        </g>
+        <g transform="translate(178 60) scale(.8)">
+          <path pathLength="1" d="M100 252 C98 200 104 140 98 34" />
+          <path class="leaf" pathLength="1" d="M99 205 C62 202 40 178 38 150 C72 150 96 172 99 205 Z" />
+          <path class="leaf" pathLength="1" d="M100 175 C138 172 160 148 162 120 C128 120 103 142 100 175 Z" />
+          <path class="leaf" pathLength="1" d="M99 98 C126 94 144 76 146 52 C118 54 101 72 99 98 Z" />
+          <path class="leaf" pathLength="1" d="M98 34 C84 24 86 10 98 4 C112 12 112 26 98 34 Z" />
+        </g>
+        <path class="ground" pathLength="1" d="M14 264 H306" />
+      </svg>
+    </header>
+
+    <section class="quick-glance" data-slot="quick-glance" aria-label="Hardin overview"></section>
+
+    <div class="home-layout">
+      <div class="home-main">
+
+        <section class="block" data-slot="folders-block">
+          <h2 class="section-title">Explore folders</h2>
+          <div class="folder-tiles" data-slot="tiles"></div>
+        </section>
+
+        <section class="block" data-slot="featured-block">
+          <h2 class="section-title">Featured</h2>
+          <div class="grid" data-slot="featured"></div>
+        </section>
+
+        <section class="block">
+          <h2 class="section-title" data-slot="latest-title">Latest</h2>
+          <div class="grid" data-slot="grid"></div>
+          <p class="status" data-slot="empty" hidden></p>
+        </section>
+
+      </div>
+
+      <aside class="home-side">
+        <div data-slot="calendar"></div>
+        <section class="upcoming" data-slot="upcoming-block">
+          <h3>Coming up</h3>
+          <ul class="upcoming-list" data-slot="upcoming"></ul>
+        </section>
+      </aside>
+    </div>
+  </template>
+
+  <!-- ---------- Folder, day and search pages ---------- -->
+  <template id="tpl-list">
+    <nav class="breadcrumbs" data-slot="crumbs" aria-label="Breadcrumb"></nav>
+
+    <header class="page-head">
+      <h1 data-slot="title"></h1>
+      <p class="page-sub" data-slot="sub"></p>
+    </header>
+
+    <div class="view-toolbar" data-slot="view-toolbar" hidden>
+      <div>
+        <strong>View</strong>
+        <span class="view-hint">Choose how your folders and items are arranged.</span>
+      </div>
+      <div class="view-switcher" role="group" aria-label="Folder and item view">
+        <button class="view-switch active" type="button" data-view="grid" aria-pressed="true">Tile Grid</button>
+        <button class="view-switch" type="button" data-view="list" aria-pressed="false">List</button>
+        <button class="view-switch" type="button" data-view="accordion" aria-pressed="false">Accordion</button>
+      </div>
+    </div>
+
+    <div class="list-layout" data-slot="layout">
+      <div class="list-main">
+        <div class="events" data-slot="events" hidden></div>
+        <div class="folder-tiles" data-slot="tiles" hidden></div>
+        <div class="grid" data-slot="grid"></div>
+        <div class="folder-accordion" data-slot="accordion" hidden></div>
+        <p class="status" data-slot="empty" hidden></p>
+      </div>
+      <aside class="home-side" data-slot="side" hidden></aside>
+    </div>
+  </template>
+
+  <!-- ---------- One post (the reading page) ---------- -->
+  <template id="tpl-post">
+    <article class="post-page">
+      <nav class="breadcrumbs" data-slot="crumbs" aria-label="Breadcrumb"></nav>
+
+      <header class="post-head">
+        <span class="badge" data-slot="badge"></span>
+        <h1 class="post-title" data-slot="title"></h1>
+        <p class="post-dek" data-slot="dek" hidden></p>
+        <div class="meta-row post-meta" data-slot="meta"></div>
+      </header>
+
+      <div data-slot="embed"></div>
+      <div class="prose" data-slot="body"></div>
+      <div data-slot="link"></div>
+      <div class="post-actions" data-slot="actions"></div>
+
+      <section class="keep-reading" data-slot="more-block">
+        <h2 class="section-title">Keep reading</h2>
+        <ul class="more-list" data-slot="more"></ul>
+      </section>
+    </article>
+  </template>
+
+  <!-- ---------- About ---------- -->
+  <template id="tpl-about">
+    <nav class="breadcrumbs" data-slot="crumbs" aria-label="Breadcrumb"></nav>
+
+    <section class="about">
+      <div class="about-portrait" data-slot="portrait" aria-hidden="true"></div>
+      <div class="about-body">
+        <h1>About me</h1>
+        <div class="about-text" data-slot="about-text">
+          <p>Hi, I'm Diya. Haqin is my little corner of the internet, where I keep my designs, projects and article entries.</p>
+          <p>Thanks for stopping by. Take a look around, and say hello if you like.</p>
+        </div>
+
+        <ul class="contact-list">
+          <li>
+            <a class="contact" href="https://www.facebook.com/miitochandria" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+              <span>Facebook</span>
+            </a>
+          </li>
+          <li>
+            <a class="contact" href="https://t.me/rmzr_01" target="_blank" rel="noopener noreferrer" aria-label="Telegram">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              <span>Telegram</span>
+            </a>
+          </li>
+          <li>
+            <a class="contact" href="mailto:drea.ramizares@gmail.com" target="_blank" rel="noopener noreferrer" aria-label="Email">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
+              <span>Email</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </template>
+
+  <!-- ---------- Page not found ---------- -->
+  <template id="tpl-missing">
+    <section class="missing">
+      <h1>That page isn't in the garden</h1>
+      <p>It may have been moved, turned back into a draft, or the link is a little off.</p>
+      <a class="btn primary" href="#/">Back to Haqin</a>
+    </section>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
