@@ -54,9 +54,10 @@
         <summary class="menu-toggle" aria-label="Open features menu">☰</summary>
         <div class="menu-panel">
           <strong>My features</strong>
+          <a href="#/klase" data-nav="klase">Klase</a>
+          <a href="#/garden" data-nav="garden">Garden</a>
           <a href="#/tasks" data-nav="tasks">Tasks & reminders</a>
           <a href="#/wallet" data-nav="wallet">Savings wallet</a>
-          <a href="#/prayer" data-nav="prayer">Prayer wall</a>
           <a href="#/devotionals" data-nav="devotionals">Devotionals</a>
         </div>
       </details>
@@ -80,8 +81,38 @@
   <!-- ===== Footer (on every page) ===== -->
   <footer class="site-footer">
     <p id="visit-count" class="visit-count"></p>
-    <p>Ann &copy; 2026 Haqin. Little Corner .</p>
+    <p>Ann &copy; 2026 Haqin. Little Corner . <button id="admin-login" class="footer-admin" type="button">Admin</button></p>
   </footer>
+
+  <div id="admin-modal" class="admin-modal" hidden>
+    <div class="admin-modal-backdrop" data-admin-close></div>
+    <section class="admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-dialog-title">
+      <button class="icon-btn small admin-close" type="button" data-admin-close aria-label="Close admin panel">×</button>
+      <div id="admin-login-view" class="admin-login-view" data-admin-login-view>
+        <h2 id="admin-dialog-title">Admin login</h2>
+        <p class="hint">Sign in to manage your posts from this device.</p>
+        <form class="feature-form" data-admin-login-form>
+          <label class="field"><span>Email</span><input data-admin-email type="email" autocomplete="email" required></label>
+          <label class="field"><span>Password</span><input data-admin-password type="password" autocomplete="current-password" required></label>
+          <button class="btn primary" type="submit">Sign in</button>
+          <p class="form-message" data-admin-login-status></p>
+        </form>
+      </div>
+      <div id="admin-editor-view" class="admin-editor-view" data-admin-editor-view hidden>
+        <div class="feature-panel-head"><h2 data-admin-editor-title>New post</h2><button class="btn ghost small" type="button" data-admin-signout>Sign out</button></div>
+        <form class="feature-form" data-admin-post-form>
+          <label class="field"><span>Title</span><input data-admin-title maxlength="120" required></label>
+          <label class="field"><span>Subtitle</span><input data-admin-subtitle maxlength="200"></label>
+          <div class="field-row"><label class="field"><span>Folder</span><select data-admin-folder></select></label><label class="field"><span>Status</span><select data-admin-status><option value="published">Published</option><option value="draft">Draft</option></select></label></div>
+          <label class="field"><span>Summary</span><textarea data-admin-summary rows="2"></textarea></label>
+          <label class="field"><span>Post</span><textarea data-admin-body rows="9" required></textarea></label>
+          <label class="check"><input data-admin-pinned type="checkbox"><span>Featured</span></label>
+          <div class="button-row"><button class="btn primary" type="submit">Save post</button><button class="btn ghost" type="button" data-admin-new>New post</button></div>
+          <p class="form-message" data-admin-post-status></p>
+        </form>
+      </div>
+    </section>
+  </div>
 
   <!-- =====================================================
        Page templates. app.js copies one of these into <main>
@@ -94,6 +125,7 @@
       <div class="hero-text">
         <h1>Haqin</h1>
         <p class="tagline" data-slot="tagline">Designs, projects, and article entries.</p>
+        <p class="hero-date" data-slot="today"></p>
         <p class="hero-note">Haqin hardin</p>
         <div class="hero-actions">
           <button class="btn primary small" type="button" data-slot="surprise" hidden></button>
@@ -129,6 +161,15 @@
       </svg>
     </header>
 
+    <section class="home-personal" aria-label="Your Haqin">
+      <div class="personal-summary" data-slot="analytics"></div>
+      <div class="personal-columns">
+        <div data-slot="home-klase"></div>
+        <div data-slot="home-garden"></div>
+        <div data-slot="home-notes"></div>
+      </div>
+    </section>
+
     <div class="home-layout">
       <div class="home-main">
 
@@ -156,6 +197,99 @@
         <div data-slot="calendar"></div>
       </aside>
     </div>
+  </template>
+
+  <!-- ---------- Garden ---------- -->
+  <template id="tpl-garden">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Garden</span></nav>
+    <header class="page-head"><h1>Garden growth</h1><p class="page-sub">A quiet little garden that grows with the things you make.</p></header>
+    <section class="garden-layout">
+      <div class="panel garden-stage-panel">
+        <div class="garden-stage" data-garden-stage aria-label="Your personal garden"></div>
+        <div class="garden-progress" data-garden-progress></div>
+      </div>
+      <div class="panel garden-controls">
+        <div class="feature-panel-head"><h2>Decorate</h2><button class="btn ghost small" data-garden-reset type="button">Reset layout</button></div>
+        <p class="hint" data-garden-status></p>
+        <div class="garden-palette" data-garden-palette></div>
+        <a class="garden-cycle-link" href="#/cycle">Open Cycle tracker →</a>
+      </div>
+    </section>
+  </template>
+
+  <!-- ---------- Klase ---------- -->
+  <template id="tpl-klase">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Klase</span></nav>
+    <header class="page-head"><h1>Klase</h1><p class="page-sub">Your weekly rhythm, school tasks, and current estimates in one place.</p></header>
+    <section class="klase-layout">
+      <div class="panel">
+        <div class="feature-panel-head"><h2>Weekly schedule</h2><span class="hint">Monday to Sunday</span></div>
+        <details class="schedule-editor">
+          <summary class="btn ghost small">Add or edit class</summary>
+          <form class="feature-form" data-klase-schedule-form>
+          <input data-klase-edit-id type="hidden">
+          <div class="field-row"><label class="field"><span>Day</span><select data-klase-day><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></label><label class="field"><span>Subject code</span><input data-klase-code maxlength="30" placeholder="CCCS 101"></label></div>
+          <div class="field-row"><label class="field"><span>Subject</span><input data-klase-subject maxlength="80" required placeholder="Introduction to Computing"></label><label class="field"><span>Units</span><input data-klase-units type="number" min="0" step="0.5" placeholder="3"></label></div>
+          <div class="field-row"><label class="field"><span>Starts</span><input data-klase-start type="time" required></label><label class="field"><span>Ends</span><input data-klase-end type="time" required></label></div>
+          <div class="field-row"><label class="field"><span>Room</span><input data-klase-room maxlength="60" placeholder="Optional"></label><label class="field"><span>Instructor</span><input data-klase-teacher maxlength="80" placeholder="Optional"></label></div>
+          <div class="field-row"><label class="field"><span>Section</span><input data-klase-section maxlength="30" placeholder="BSCS 1A"></label><label class="field"><span>Description</span><input data-klase-description maxlength="120" placeholder="Optional"></label></div>
+          <label class="field"><span>Notes</span><textarea data-klase-class-notes rows="2" placeholder="Optional"></textarea></label>
+          <div class="button-row"><button class="btn primary" type="submit" data-klase-save>Save class</button><button class="btn ghost" data-klase-cancel type="button" hidden>Cancel editing</button></div>
+            <p class="hint" data-klase-schedule-status></p>
+          </form>
+          <div class="class-manager" data-klase-manager></div>
+        </details>
+        <div class="week-grid" data-klase-week></div>
+      </div>
+      <aside class="klase-side">
+        <section class="panel klase-notepad"><div class="feature-panel-head"><h2>Brainstorm pad</h2><span class="hint" data-klase-note-status>Saved locally</span></div><textarea data-klase-notepad rows="8" placeholder="Ideas, reminders, questions..."></textarea></section>
+        <section class="panel klase-focus-panel"><div class="feature-panel-head"><h2>Focus timer</h2><span class="hint">Study rhythm</span></div><p>Set aside one calm block for the thing in front of you.</p><a class="btn primary small" href="#/focus">Open timer</a></section>
+        <section class="panel school-apps-panel"><div class="feature-panel-head"><h2>School apps</h2><span class="hint">Open quickly</span></div><div class="school-apps" aria-label="School app shortcuts">
+          <a class="school-app" href="https://drive.google.com" target="_blank" rel="noopener noreferrer" title="Open Google Drive"><span class="school-app-icon drive">D</span><span>Drive</span></a>
+          <a class="school-app" href="https://docs.google.com" target="_blank" rel="noopener noreferrer" title="Open Google Docs"><span class="school-app-icon docs">D</span><span>Docs</span></a>
+          <a class="school-app" href="https://classroom.google.com" target="_blank" rel="noopener noreferrer" title="Open Google Classroom"><span class="school-app-icon classroom">C</span><span>Classroom</span></a>
+          <a class="school-app" href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" title="Open Gemini"><span class="school-app-icon gemini">G</span><span>Gemini</span></a>
+          <a class="school-app" href="https://meet.google.com" target="_blank" rel="noopener noreferrer" title="Open Google Meet"><span class="school-app-icon meet">M</span><span>Meet</span></a>
+          <a class="school-app" href="https://chat.google.com" target="_blank" rel="noopener noreferrer" title="Open Google Chat"><span class="school-app-icon chat">C</span><span>Chat</span></a>
+          <a class="school-app" href="https://mail.google.com" target="_blank" rel="noopener noreferrer" title="Open Gmail"><span class="school-app-icon gmail">G</span><span>Gmail</span></a>
+          <a class="school-app" href="https://web.telegram.org" target="_blank" rel="noopener noreferrer" title="Open Telegram"><span class="school-app-icon telegram">T</span><span>Telegram</span></a>
+          <a class="school-app" href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" title="Open Facebook"><span class="school-app-icon facebook">F</span><span>Facebook</span></a>
+        </div></section>
+        <section class="panel"><div class="feature-panel-head"><h2>Upcoming</h2><span class="hint">Deadlines</span></div><ul class="feature-list" data-klase-upcoming></ul></section>
+        <section class="panel"><h2>School tasks</h2><select data-klase-subject-select aria-label="Choose a subject code"></select><div data-klase-subject-workspace></div></section>
+      </aside>
+    </section>
+  </template>
+
+  <!-- ---------- Cycle ---------- -->
+  <template id="tpl-cycle">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Cycle</span></nav>
+    <header class="page-head"><h1>Cycle</h1><p class="page-sub">A private, simple record for your own reference. Estimates are not guarantees or medical advice.</p></header>
+    <section class="cycle-layout">
+      <div class="panel"><h2>Add a cycle</h2><form class="feature-form" data-cycle-form><div class="field-row"><label class="field"><span>Period started</span><input data-cycle-start type="date" required></label><label class="field"><span>Period ended</span><input data-cycle-end type="date"></label></div><label class="field"><span>Cycle length, if known</span><input data-cycle-length type="number" min="1" max="100" placeholder="Usually around 28"></label><button class="btn primary" type="submit">Save cycle</button><p class="hint" data-cycle-status></p></form></div>
+      <div class="panel cycle-estimate"><p class="eyebrow">Estimated next period</p><strong data-cycle-next>Not enough history yet</strong><p class="hint">This is only a calendar estimate based on your entries.</p></div>
+      <div class="panel"><h2>Previous cycles</h2><ul class="feature-list" data-cycle-list></ul></div>
+    </section>
+  </template>
+
+  <!-- ---------- Focus timer ---------- -->
+  <template id="tpl-focus">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Focus timer</span></nav>
+    <header class="page-head"><h1>Focus timer</h1><p class="page-sub">A gentle rhythm for making space to focus, then breathe.</p></header>
+    <section class="focus-layout">
+      <div class="panel focus-panel">
+        <p class="eyebrow" data-focus-mode>Focus time</p>
+        <div class="focus-clock" data-focus-clock>25:00</div>
+        <p class="focus-message" data-focus-message>Ready when you are.</p>
+        <div class="focus-actions"><button class="btn primary" data-focus-start type="button">Start</button><button class="btn ghost" data-focus-reset type="button">Reset</button></div>
+        <div class="focus-progress" aria-hidden="true"><i data-focus-progress></i></div>
+      </div>
+      <div class="panel focus-settings">
+        <h2>Timer rhythm</h2>
+        <div class="field-row"><label class="field"><span>Focus minutes</span><input data-focus-work type="number" min="1" max="120" value="25"></label><label class="field"><span>Rest minutes</span><input data-focus-rest type="number" min="1" max="60" value="5"></label></div>
+        <p class="hint">The timer stays on this device and continues while this page is open.</p>
+      </div>
+    </section>
   </template>
 
   <!-- ---------- Folder, tag, day and search pages ---------- -->
@@ -311,6 +445,24 @@
         </form>
       </section>
       <section class="panel devotional-history"><div class="feature-panel-head"><h2>My readings</h2><span class="hint" data-devotional-count></span></div><ul class="feature-list" data-devotional-list></ul></section>
+      <section class="devotional-tools">
+        <section class="panel devotional-prayer-panel">
+          <div class="feature-panel-head"><h2>Prayer wall</h2><span class="hint">Private monthly notes</span></div>
+          <label class="field"><span>Month</span><input data-prayer-month type="month"></label>
+          <label class="field"><span>Prayer notes</span><textarea data-prayer-text rows="9" placeholder="Write your prayers, hopes, and gratitude here..."></textarea></label>
+          <div class="button-row"><button class="btn primary" data-save-prayer type="button">Save this month</button><span class="hint" data-prayer-status></span></div>
+        </section>
+        <section class="panel bible-tracker-panel">
+          <div class="feature-panel-head"><h2>Bible tracker</h2><span class="hint" data-bible-count></span></div>
+          <form class="feature-form" data-bible-form>
+            <div class="field-row"><label class="field"><span>Date</span><input data-bible-date type="date" required></label><label class="field"><span>Passage</span><input data-bible-reference maxlength="120" placeholder="John 15:1-8" required></label></div>
+            <label class="field"><span>Reading title</span><input data-bible-title maxlength="120" placeholder="The true vine"></label>
+            <label class="field"><span>Notes</span><textarea data-bible-notes rows="3" placeholder="A word, question, or thought to remember..."></textarea></label>
+            <button class="btn primary" type="submit">Mark reading</button>
+          </form>
+          <ul class="feature-list" data-bible-list></ul>
+        </section>
+      </section>
     </section>
   </template>
 
@@ -323,6 +475,6 @@
     </section>
   </template>
 
-  <script type="module" src="app.js?v=devotionals1"></script>
+  <script type="module" src="app.js?v=personal-garden2"></script>
 </body>
 </html>

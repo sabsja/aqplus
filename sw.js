@@ -1,4 +1,4 @@
-const CACHE_NAME = "haqin-shell-v4";
+const CACHE_NAME = "haqin-shell-v5";
 const SHELL = [
   "./",
   "./index.html",
@@ -25,5 +25,5 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  event.respondWith(caches.match(event.request, { ignoreSearch: true }).then((cached) => cached || fetch(event.request)));
 });

@@ -18,7 +18,7 @@
 // The Firestore rules decide exactly what they may write.
 // =========================================================
 
-import { db } from "./firebase-config.js";
+import { auth, db } from "./firebase-config.js";
 import { SITE_NAME } from "./hardin-config.js";
 import {
   collection,
@@ -28,15 +28,26 @@ import {
   query,
   where,
   updateDoc,
+  addDoc,
+  deleteDoc,
   setDoc,
-  increment
+  increment,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  setPersistence,
+  browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   el,
   icon,
   MOODS,
   buildFolderTree,
   formatDate,
+  formatRelativeDate,
   postDate,
   postDateMs,
   wordCount,
@@ -80,6 +91,10 @@ let currentRoute = { name: "home", arg: "" };
 let searchText = "";
 let searchUI = null;
 let installPrompt = null;
+let isAdmin = false;
+let adminUser = null;
+let adminEditingId = null;
+const ADMIN_UID = "dq1svskEn1SmaJQsB2AHugYjvis1";
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
@@ -118,6 +133,20 @@ const reacted = new Set(readList(localStorage, "hardin-reacted"));
 const saved = new Set(readList(localStorage, "hardin-saved"));
 const viewed = new Set(readList(sessionStorage, "hardin-viewed"));
 
+onAuthStateChanged(auth, (user) => {
+  adminUser = user;
+  isAdmin = Boolean(user && user.uid === ADMIN_UID);
+  document.body.classList.toggle("is-admin", isAdmin);
+  const button = $("admin-login");
+  if (button) button.textContent = isAdmin ? "Admin · Sign out" : "Admin";
+  if (user && !isAdmin) $("admin-login-status").textContent = "This account is not the configured Haqin admin account.";
+  if (!isAdmin) closeAdminModal();
+  else if ($("admin-modal") && !$('admin-modal').hidden) openAdminEditor(null);
+  if (dataReady) loadData();
+});
+
+setPersistence(auth, browserLocalPersistence).catch((error) => console.error(error));
+
 // Where each kind of page lives
 const href = {
   home: () => "#/",
@@ -130,6 +159,84 @@ function cloneTemplate(id) { return document.getElementById(id).content.cloneNod
 function slot(root, name) { return root.querySelector(`[data-slot="${name}"]`); }
 function countText(n, word) { return `${n} ${n === 1 ? word : word + "s"}`; }
 
+function closeAdminModal() {
+  $("admin-modal").hidden = true;
+  adminEditingId = null;
+}
+
+function openAdminEditor(post) {
+  if (!isAdmin) return;
+  const modal = $("admin-modal");
+  modal.hidden = false;
+  $("admin-login-view").hidden = true;
+  $("admin-editor-view").hidden = false;
+  const folder = $("admin-folder");
+  folder.replaceChildren(new Option("Unsorted (no folder)", ""), ...tree.flat().map(({ folder: item }) => new Option(tree.label(item.id), item.id)));
+  adminEditingId = post ? post.id : null;
+  $("admin-editor-title").textContent = post ? "Edit post" : "New post";
+  $("admin-title").value = post?.title || "";
+  $("admin-subtitle").value = post?.subtitle || "";
+  folder.value = post?.folderId || "";
+  $("admin-status").value = post?.status || "published";
+  $("admin-summary").value = post?.summary || "";
+  $("admin-body").value = post?.body || "";
+  $("admin-pinned").checked = Boolean(post?.pinned);
+  $("admin-post-status").textContent = "";
+}
+
+function openAdminLogin() {
+  const modal = $("admin-modal");
+  modal.hidden = false;
+  $("admin-login-view").hidden = isAdmin;
+  $("admin-editor-view").hidden = !isAdmin;
+  if (isAdmin) openAdminEditor(null);
+}
+
+$("admin-login").addEventListener("click", () => {
+  if (isAdmin) signOut(auth);
+  else openAdminLogin();
+});
+document.querySelectorAll("[data-admin-close]").forEach((node) => node.addEventListener("click", closeAdminModal));
+document.querySelector("[data-admin-login-form]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const status = $("admin-login-status");
+  status.textContent = "Signing in...";
+  try {
+    await signInWithEmailAndPassword(auth, $("admin-email").value.trim(), $("admin-password").value);
+    status.textContent = "Signed in.";
+  } catch (error) {
+    console.error(error);
+    const code = error?.code || "unknown";
+    status.textContent = code === "auth/unauthorized-domain"
+      ? "Firebase blocked this address. Open the site from an authorized web address, not file://."
+      : code === "auth/invalid-credential"
+        ? "That email or password does not match a Firebase Auth account in this project."
+        : `Couldn't sign in (${code}).`;
+  }
+});
+document.querySelector("[data-admin-signout]").addEventListener("click", () => signOut(auth));
+document.querySelector("[data-admin-new]").addEventListener("click", () => openAdminEditor(null));
+document.querySelector("[data-admin-post-form]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!isAdmin) return;
+  const data = {
+    title: $("admin-title").value.trim(), subtitle: $("admin-subtitle").value.trim(), folderId: $("admin-folder").value,
+    summary: $("admin-summary").value.trim(), body: $("admin-body").value.trim(), status: $("admin-status").value,
+    pinned: $("admin-pinned").checked
+  };
+  const status = $("admin-post-status");
+  try {
+    if (adminEditingId) await updateDoc(doc(db, "posts", adminEditingId), { ...data, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db, "posts"), { ...data, views: 0, reactions: 0, createdAt: serverTimestamp(), publishedAt: data.status === "published" ? serverTimestamp() : null });
+    status.textContent = "Post saved.";
+    await loadData();
+    openAdminEditor(null);
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Couldn't save the post. Check your Firebase permissions.";
+  }
+});
+
 // =========================================================
 // 1. Load everything from Firestore
 // =========================================================
@@ -138,8 +245,8 @@ async function loadData() {
   try {
     const [folderSnap, postSnap, eventSnap, settingsSnap] = await Promise.all([
       getDocs(collection(db, "folders")),
-      // Only published posts. Drafts are never sent to visitors.
-      getDocs(query(collection(db, "posts"), where("status", "==", "published"))),
+      // Visitors only receive published posts; the authenticated admin can manage drafts too.
+      isAdmin ? getDocs(collection(db, "posts")) : getDocs(query(collection(db, "posts"), where("status", "==", "published"))),
       // Extras: if these fail, the rest of the site still works
       getDocs(collection(db, "events")).catch(() => null),
       getDoc(doc(db, "settings", "site")).catch(() => null)
@@ -270,9 +377,13 @@ function buildPage(r) {
     case "search": return pageSearch();
     case "saved":  return pageSaved();
     case "about":  return pageAbout();
+    case "garden": return pageGarden();
+    case "klase":  return pageKlase();
+    case "cycle":  return pageCycle();
+    case "focus":  return pageFocus();
     case "tasks":  return pageTasks();
     case "wallet":  return pageWallet();
-    case "prayer":  return pagePrayer();
+    case "prayer":  return pageDevotionals();
     case "devotionals": return pageDevotionals();
     default:       return pageMissing();
   }
@@ -314,8 +425,15 @@ function fillCrumbs(nav, steps) {
 }
 
 function sortPosts(list) {
-  // Featured (pinned) first, then newest first
-  return [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || postDateMs(b) - postDateMs(a));
+  const mode = getPref("hardin-post-sort", "newest");
+  return [...list].sort((a, b) => {
+    const featured = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+    if (featured) return featured;
+    if (mode === "oldest") return postDateMs(a) - postDateMs(b);
+    if (mode === "updated") return (timestampDate(b.updatedAt)?.getTime() || postDateMs(b)) - (timestampDate(a.updatedAt)?.getTime() || postDateMs(a));
+    if (mode === "title") return (a.title || "").localeCompare(b.title || "");
+    return postDateMs(b) - postDateMs(a);
+  });
 }
 
 function matchesSearch(post, q) {
@@ -333,6 +451,8 @@ function metaParts(post, shortDate) {
   const parts = [];
   const date = formatDate(postDate(post), shortDate);
   if (date) parts.push(el("span", "", date));
+  const updated = formatRelativeDate(post.updatedAt);
+  if (updated) parts.push(el("span", "updated-meta", updated));
   const mood = MOODS[post.mood];
   if (mood) parts.push(el("span", "mood", `${mood.emoji} ${mood.label}`));
   if (wordCount(post.body) > 0) parts.push(el("span", "", `${readMinutes(post.body)} min read`));
@@ -384,6 +504,23 @@ function makeCard(post) {
   const foot = el("div", "card-foot");
   foot.append(makeReactButton(post), makeShareButton(post), makeSaveButton(post, false), makeViews(post));
   card.appendChild(foot);
+
+  if (isAdmin) {
+    const adminTools = el("div", "admin-card-tools");
+    const edit = el("button", "btn ghost small", "Edit");
+    edit.type = "button";
+    edit.addEventListener("click", (event) => { event.preventDefault(); openAdminEditor(post); });
+    const remove = el("button", "btn danger small", "Delete");
+    remove.type = "button";
+    remove.addEventListener("click", async (event) => {
+      event.preventDefault();
+      if (!window.confirm(`Delete “${post.title}”?`)) return;
+      await deleteDoc(doc(db, "posts", post.id));
+      await loadData();
+    });
+    adminTools.append(edit, remove);
+    card.appendChild(adminTools);
+  }
 
   return card;
 }
@@ -533,7 +670,7 @@ function makePostRow(post) {
 function fillPosts(container, list) {
   const cards = viewMode() === "tiles";
   container.className = cards ? "grid" : "post-list";
-  container.replaceChildren(...list.map((post) => (cards ? makeCard(post) : makePostRow(post))));
+  container.replaceChildren(...sortPosts(list).map((post) => (cards ? makeCard(post) : makePostRow(post))));
 }
 
 // ----- The switcher: Tiles / List / Accordion (remembered on this device) -----
@@ -562,6 +699,13 @@ function buildViewControls(bar, redraw) {
   });
   bar.appendChild(group);
 
+  const sort = el("select", "sort-select");
+  sort.setAttribute("aria-label", "Sort posts");
+  [["newest", "Newest first"], ["updated", "Recently updated"], ["oldest", "Oldest first"], ["title", "Title A-Z"]].forEach(([value, label]) => sort.appendChild(new Option(label, value)));
+  sort.value = getPref("hardin-post-sort", "newest");
+  sort.addEventListener("change", () => { setPref("hardin-post-sort", sort.value); redraw(); buildViewControls(bar, redraw); });
+  bar.append(el("span", "view-label sort-label", "Sort"), sort);
+
   // Only the accordion can be opened and closed
   if (current === "accordion") {
     const expand = el("button", "btn ghost small", "Open all");
@@ -582,6 +726,8 @@ function buildViewControls(bar, redraw) {
 function pageHome() {
   const node = cloneTemplate("tpl-home");
   if (settings.tagline) slot(node, "tagline").textContent = settings.tagline;
+  fillGreeting(node);
+  fillHomePersonal(node);
 
   // "Surprise me" opens a random post
   const surprise = slot(node, "surprise");
@@ -619,6 +765,299 @@ function pageHome() {
   slot(node, "calendar").appendChild(makeCalendar(""));
 
   return { node, title: "" };
+}
+
+function fillGreeting(node) {
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  slot(node, "today").textContent = today;
+}
+
+function timestampDate(value) {
+  return value && value.toDate ? value.toDate() : value ? new Date(value) : null;
+}
+
+function personalStats() {
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const monthPosts = posts.filter((post) => {
+    const date = timestampDate(post.createdAt || post.publishedAt);
+    return date && date.getMonth() === month && date.getFullYear() === year;
+  }).length;
+  const activeDays = new Set(posts.map(postDayKey).filter(Boolean)).size;
+  const words = posts.reduce((sum, post) => sum + wordCount(post.body), 0);
+  const klaseTasks = readList(localStorage, "hardin-klase-tasks");
+  const quickTasks = readList(localStorage, "hardin-tasks");
+  return {
+    entries: posts.length,
+    folders: folders.length,
+    saved: posts.filter((post) => saved.has(post.id)).length,
+    monthPosts,
+    activeDays,
+    words,
+    completed: quickTasks.filter((task) => task.done).length + klaseTasks.filter((task) => task.status === "completed").length
+  };
+}
+
+function fillHomePersonal(node) {
+  const stats = personalStats();
+  const analytics = slot(node, "analytics");
+  analytics.appendChild(el("div", "personal-heading", "Your Haqin"));
+  const statGrid = el("div", "personal-stats");
+  [["🌱", stats.entries, "entries"], ["🍃", stats.folders, "folders"], ["🔖", stats.saved, "saved"], ["🌼", stats.monthPosts, "this month"]].forEach(([symbol, value, label]) => {
+    const item = el("div", "personal-stat");
+    item.append(el("span", "personal-stat-symbol", symbol), el("strong", "", String(value)), el("span", "", label));
+    statGrid.appendChild(item);
+  });
+  analytics.append(statGrid, el("p", "growth-whisper", stats.entries ? "🌱 Growing slowly" : "🌱 Ready for the first planting"));
+
+  const klase = slot(node, "home-klase");
+  const klaseCard = el("section", "home-feature");
+  klaseCard.append(el("p", "eyebrow", "Klase"), el("h2", "", "Today's rhythm"));
+  const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  const todayClasses = readList(localStorage, "hardin-klase-schedule").filter((entry) => entry.day === todayName).sort((a, b) => a.start.localeCompare(b.start));
+  klaseCard.appendChild(el("p", "home-feature-text", todayClasses[0] ? `${todayClasses[0].start} · ${todayClasses[0].subject}` : "No classes planned for today."));
+  klaseCard.appendChild(el("a", "text-link", "Open Klase →")).href = "#/klase";
+  klase.appendChild(klaseCard);
+
+  const garden = slot(node, "home-garden");
+  const gardenCard = el("section", "home-feature");
+  const growth = gardenGrowth(stats.entries);
+  gardenCard.append(el("p", "eyebrow", "Garden"), el("h2", "", `${growth.icon} ${growth.name}`));
+  const preview = el("div", "garden-mini", growth.unlocked.map((item) => item.symbol).join(" ") || "🌱");
+  gardenCard.append(preview, el("p", "home-feature-text", `${stats.entries} / ${GARDEN_DECORATIONS.length} entries`));
+  const gardenLink = el("a", "text-link", "Decorate garden →"); gardenLink.href = "#/garden"; gardenCard.appendChild(gardenLink);
+  garden.appendChild(gardenCard);
+
+  fillQuickNotes(node, slot(node, "home-notes"));
+}
+
+const GARDEN_DECORATIONS = [
+  { symbol: "🌱", name: "Sprout" }, { symbol: "🌿", name: "Grass" }, { symbol: "🌼", name: "Flower" },
+  { symbol: "🌷", name: "Tulip" }, { symbol: "🍃", name: "Leaf" }, { symbol: "🌻", name: "Sunflower" },
+  { symbol: "🪻", name: "Lavender" }, { symbol: "🪨", name: "Stone" }, { symbol: "🦋", name: "Butterfly" },
+  { symbol: "🐝", name: "Bee" }, { symbol: "☀️", name: "Sun" }, { symbol: "☁️", name: "Cloud" },
+  { symbol: "🍄", name: "Mushroom" }, { symbol: "🌳", name: "Tree" }
+];
+
+function gardenGrowth(count) {
+  const unlocked = GARDEN_DECORATIONS.slice(0, Math.min(count, GARDEN_DECORATIONS.length));
+  const stages = count < 1 ? ["Seedling", "🌱"] : count < 6 ? ["Seedling", "🌱"] : count < 16 ? ["Growing", "🌿"] : count < 31 ? ["Young Garden", "🪴"] : ["Little Garden", "🌳"];
+  return { name: stages[0], icon: stages[1], unlocked };
+}
+
+function fillQuickNotes(root, target) {
+  const box = el("section", "home-feature quick-notes");
+  box.append(el("p", "eyebrow", "Quick notes"), el("h2", "", "Small things to remember"));
+  const form = el("form", "quick-note-form");
+  const input = el("input"); input.type = "text"; input.placeholder = "Add a quick note"; input.maxLength = 120; input.required = true;
+  const add = el("button", "icon-btn small", "+"); add.type = "submit"; add.setAttribute("aria-label", "Add quick note");
+  form.append(input, add);
+  const list = el("ul", "quick-note-list");
+  const draw = () => {
+    list.replaceChildren();
+    const notes = readList(localStorage, "hardin-quick-notes");
+    if (!notes.length) list.appendChild(el("li", "empty-state", "Nothing waiting here."));
+    notes.slice(0, 5).forEach((note) => {
+      const item = el("li", `quick-note${note.done ? " is-done" : ""}`);
+      const check = el("input"); check.type = "checkbox"; check.checked = Boolean(note.done); check.setAttribute("aria-label", `Complete ${note.text}`);
+      check.addEventListener("change", () => { writeList(localStorage, "hardin-quick-notes", readList(localStorage, "hardin-quick-notes").map((entry) => entry.id === note.id ? { ...entry, done: check.checked } : entry)); draw(); });
+      const text = el("span", "", note.text); text.title = "Double-click to edit"; text.addEventListener("dblclick", () => { const next = window.prompt("Edit quick note", note.text); if (next && next.trim()) { writeList(localStorage, "hardin-quick-notes", readList(localStorage, "hardin-quick-notes").map((entry) => entry.id === note.id ? { ...entry, text: next.trim() } : entry)); draw(); } }); const remove = el("button", "icon-btn small", "×"); remove.type = "button"; remove.setAttribute("aria-label", `Delete ${note.text}`);
+      remove.addEventListener("click", () => { writeList(localStorage, "hardin-quick-notes", readList(localStorage, "hardin-quick-notes").filter((entry) => entry.id !== note.id)); draw(); });
+      item.append(check, text, remove); list.appendChild(item);
+    });
+  };
+  form.addEventListener("submit", (event) => { event.preventDefault(); writeList(localStorage, "hardin-quick-notes", [...readList(localStorage, "hardin-quick-notes"), { id: Date.now().toString(), text: input.value.trim(), done: false }]); input.value = ""; draw(); });
+  box.append(form, list);
+  target.appendChild(box);
+  draw();
+}
+
+function pageGarden() {
+  const node = cloneTemplate("tpl-garden");
+  const stage = node.querySelector("[data-garden-stage]");
+  const palette = node.querySelector("[data-garden-palette]");
+  const progress = node.querySelector("[data-garden-progress]");
+  const status = node.querySelector("[data-garden-status]");
+  const growth = gardenGrowth(posts.length);
+  let selected = null;
+  const layoutKey = "hardin-garden-layout";
+  const draw = () => {
+    const layout = readList(localStorage, layoutKey);
+    stage.replaceChildren();
+    if (!layout.length) stage.appendChild(el("p", "garden-empty", "Choose something below, then tap the garden to place it."));
+    layout.forEach((item) => {
+      const decoration = GARDEN_DECORATIONS[item.type];
+      if (!decoration) return;
+      const placed = el("button", "garden-decoration", decoration.symbol);
+      placed.type = "button"; placed.style.left = `${item.x}%`; placed.style.top = `${item.y}%`;
+      placed.title = `Remove ${decoration.name}`; placed.setAttribute("aria-label", `Remove ${decoration.name}`);
+      placed.addEventListener("click", (event) => { event.stopPropagation(); writeList(localStorage, layoutKey, layout.filter((entry) => entry.id !== item.id)); draw(); });
+      stage.appendChild(placed);
+    });
+    palette.replaceChildren();
+    growth.unlocked.forEach((item, index) => {
+      const button = el("button", `garden-choice${selected === index ? " selected" : ""}`, `${item.symbol} ${item.name}`);
+      button.type = "button"; button.disabled = false; button.setAttribute("aria-pressed", String(selected === index));
+      button.addEventListener("click", () => { selected = index; status.textContent = `Place ${item.name} anywhere in the garden.`; draw(); });
+      palette.appendChild(button);
+    });
+    const next = Math.min(GARDEN_DECORATIONS.length, Math.max(posts.length + 1, 1));
+    progress.replaceChildren(el("strong", "", `${posts.length} / ${GARDEN_DECORATIONS.length} entries`), el("span", "", posts.length >= GARDEN_DECORATIONS.length ? "Your little garden is in bloom." : `${next - posts.length} more ${next - posts.length === 1 ? "entry" : "entries"} unlocks the next decoration.`));
+  };
+  stage.addEventListener("click", (event) => {
+    if (selected === null) { status.textContent = "Choose an unlocked decoration first."; return; }
+    const rect = stage.getBoundingClientRect();
+    const x = Math.max(5, Math.min(95, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(8, Math.min(82, ((event.clientY - rect.top) / rect.height) * 100));
+    const layout = readList(localStorage, layoutKey);
+    writeList(localStorage, layoutKey, [...layout, { id: Date.now().toString(), type: selected, x, y }]);
+    status.textContent = "A new little thing has found its place.";
+    selected = null; draw();
+  });
+  node.querySelector("[data-garden-reset]").addEventListener("click", () => { writeList(localStorage, layoutKey, []); status.textContent = "The garden is ready for a new arrangement."; draw(); });
+  draw();
+  return { node, title: "Garden" };
+}
+
+const KLASE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DEFAULT_KLASE_SCHEDULE = [
+  { day: "Monday", code: "CCCS 101", subject: "Introduction to Computing", start: "08:00", end: "10:00", room: "AB4-TR001", teacher: "Ms. Pandes T.", section: "BSCS 1A", units: "3", order: 0 },
+  { day: "Monday", code: "CCCS 101", subject: "Introduction to Computing", start: "10:00", end: "13:00", room: "AB4-RISE", teacher: "Ms. Pandes T.", section: "BSCS 1A", units: "3", order: 1 },
+  { day: "Tuesday", code: "PATHFIT 1", subject: "Movement Competency Training", start: "08:00", end: "10:00", room: "PE CLASS 3", teacher: "Ms. Alfelor R", section: "BSCS 1A", units: "2" },
+  { day: "Tuesday", code: "GE ELECT 4", subject: "Gender and Society", start: "14:00", end: "17:00", room: "ONLINE 22", teacher: "Ms. Severo G", section: "BSCS 1A", units: "3" },
+  { day: "Wednesday", code: "CCCS 102", subject: "Fundamentals of Programming", start: "10:00", end: "13:00", room: "AB4-RISE", teacher: "Mr. Ibo A", section: "BSCS 1A", units: "3", order: 0 },
+  { day: "Wednesday", code: "CCCS 102", subject: "Fundamentals of Programming", start: "13:00", end: "15:00", room: "AB4-TR001", teacher: "Mr. Ibo A", section: "BSCS 1A", units: "3", order: 1 },
+  { day: "Tuesday", code: "CCCS 102", subject: "Fundamentals of Programming", start: "10:00", end: "13:00", room: "AB4-RISE", teacher: "Mr. Ibo A", section: "BSCS 1A", units: "3" },
+  { day: "Saturday", code: "GE 1", subject: "Understanding the Self", start: "08:00", end: "11:00", room: "ONLINE 34", teacher: "Ms. Hosana L.", section: "BSCS 1A", units: "3" },
+  { day: "Saturday", code: "GE 2", subject: "Readings in Philippine History", start: "12:00", end: "15:00", room: "ONLINE 28", teacher: "Mr. Sablayan E.", section: "BSCS 1A", units: "3" },
+  { day: "Saturday", code: "CSAM 112", subject: "Linear Algebra", start: "15:00", end: "18:00", room: "ONLINE 146", teacher: "Mr. Ramos M", section: "BSCS 1A", units: "3" },
+  { day: "Sunday", code: "NSTP 1 (ROTC)", subject: "National Service Training Program", start: "07:30", end: "11:30", room: "FIELD 1", teacher: "Mr. Sazon JL", section: "BSCS 1A", units: "3" }
+].map((entry, index) => ({ id: `starter-${index + 1}`, ...entry }));
+
+function klaseSchedule() { return readList(localStorage, "hardin-klase-schedule"); }
+function klaseTasks() { return readList(localStorage, "hardin-klase-tasks"); }
+function klaseGrades() { return readList(localStorage, "hardin-klase-grades"); }
+function subjectNames() { return [...new Set(klaseSchedule().map((entry) => entry.subject).filter(Boolean))].sort(); }
+function subjectCodes() { return [...new Set(klaseSchedule().map((entry) => entry.code || entry.subject).filter(Boolean))].sort(); }
+function timeText(value) { return value ? new Date(`2000-01-01T${value}`).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; }
+
+function pageKlase() {
+  const node = cloneTemplate("tpl-klase");
+  const form = node.querySelector("[data-klase-schedule-form]");
+  const editor = node.querySelector(".schedule-editor");
+  const fields = {
+    id: node.querySelector("[data-klase-edit-id]"), day: node.querySelector("[data-klase-day]"), subject: node.querySelector("[data-klase-subject]"),
+    start: node.querySelector("[data-klase-start]"), end: node.querySelector("[data-klase-end]"), room: node.querySelector("[data-klase-room]"),
+    teacher: node.querySelector("[data-klase-teacher]"), notes: node.querySelector("[data-klase-class-notes]"), code: node.querySelector("[data-klase-code]"),
+    units: node.querySelector("[data-klase-units]"), section: node.querySelector("[data-klase-section]"), description: node.querySelector("[data-klase-description]")
+  };
+  const status = node.querySelector("[data-klase-schedule-status]");
+  const notepad = node.querySelector("[data-klase-notepad]");
+  const noteStatus = node.querySelector("[data-klase-note-status]");
+  notepad.value = getPref("hardin-klase-notepad", "");
+  notepad.addEventListener("input", () => { setPref("hardin-klase-notepad", notepad.value); noteStatus.textContent = "Saved locally"; });
+  if (!getPref("hardin-klase-seeded", "") && !klaseSchedule().length) {
+    writeList(localStorage, "hardin-klase-schedule", DEFAULT_KLASE_SCHEDULE);
+    setPref("hardin-klase-seeded", "1");
+  }
+  const currentSchedule = klaseSchedule();
+  const hasTuesdayCccs102 = currentSchedule.some((entry) => entry.day === "Tuesday" && entry.code === "CCCS 102" && entry.start === "10:00" && entry.end === "13:00");
+  if (!hasTuesdayCccs102) {
+    writeList(localStorage, "hardin-klase-schedule", [...currentSchedule, DEFAULT_KLASE_SCHEDULE.find((entry) => entry.day === "Tuesday" && entry.code === "CCCS 102" && entry.start === "10:00")]);
+  }
+  const clearForm = () => { form.reset(); fields.id.value = ""; fields.day.value = "Monday"; node.querySelector("[data-klase-save]").textContent = "Save class"; node.querySelector("[data-klase-cancel]").hidden = true; };
+  const drawWeek = () => {
+    const week = node.querySelector("[data-klase-week]"); week.replaceChildren();
+    const schedule = klaseSchedule();
+    KLASE_DAYS.forEach((day) => {
+      const column = el("section", "day-column"); column.appendChild(el("h3", "", day));
+      const entries = schedule.filter((entry) => entry.day === day).sort((a, b) => (a.order || 0) - (b.order || 0) || a.start.localeCompare(b.start));
+      if (!entries.length) column.appendChild(el("p", "empty-state", "No classes"));
+      entries.forEach((entry) => {
+        const item = el("article", "class-item");
+        item.title = [entry.subject, entry.description, entry.teacher, entry.section, entry.units ? `${entry.units} units` : ""].filter(Boolean).join(" · ");
+        item.append(el("strong", "", entry.code || entry.subject), el("span", "class-time", `${timeText(entry.start)} - ${timeText(entry.end)}`));
+        if (entry.room) item.appendChild(el("small", "feature-item-meta", entry.room));
+        column.appendChild(item);
+      });
+      week.appendChild(column);
+    });
+  };
+  const drawUpcoming = () => {
+    const list = node.querySelector("[data-klase-upcoming]"); list.replaceChildren();
+    const upcoming = klaseTasks().filter((task) => task.status !== "completed" && task.due).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 6);
+    if (!upcoming.length) list.appendChild(el("li", "empty-state", "No upcoming deadlines."));
+    upcoming.forEach((task) => { const item = el("li", "feature-item"); item.append(el("span", "feature-item-text", task.name), el("small", "feature-item-meta", `${task.subject} · ${new Date(`${task.due}T12:00:00`).toLocaleDateString([], { dateStyle: "medium" })}`)); list.appendChild(item); });
+  };
+  const drawSubject = () => {
+    const select = node.querySelector("[data-klase-subject-select]"); const current = select.value; const names = subjectCodes();
+    select.replaceChildren(new Option(names.length ? "Choose a subject code" : "Add a class first", ""), ...names.map((name) => new Option(name, name))); select.value = names.includes(current) ? current : (names[0] || "");
+    const workspace = node.querySelector("[data-klase-subject-workspace]"); workspace.replaceChildren();
+    if (!select.value) return;
+    const subject = select.value;
+    const subjectEntries = klaseSchedule().filter((entry) => (entry.code || entry.subject) === subject);
+    const taskForm = el("form", "feature-form subject-form");
+    taskForm.appendChild(el("h3", "", "School tasks"));
+    const taskName = el("input"); taskName.placeholder = "Task name"; taskName.required = true;
+    const taskDue = el("input"); taskDue.type = "date";
+    const taskPriority = el("select"); ["Normal", "High", "Low"].forEach((value) => taskPriority.appendChild(new Option(value, value.toLowerCase())));
+    const taskDescription = el("textarea"); taskDescription.rows = 2; taskDescription.placeholder = "Description or notes";
+    const taskAdd = el("button", "btn primary small", "Add task"); taskAdd.type = "submit";
+    taskForm.append(el("label", "field", "Task name"), el("label", "field", "Due date"), el("label", "field", "Priority"));
+    taskForm.children[1].appendChild(taskName); taskForm.children[2].appendChild(taskDue); taskForm.children[3].appendChild(taskPriority); taskForm.appendChild(taskDescription); taskForm.appendChild(taskAdd);
+    taskForm.addEventListener("submit", (event) => { event.preventDefault(); writeList(localStorage, "hardin-klase-tasks", [...klaseTasks(), { id: Date.now().toString(), subject, name: taskName.value.trim(), due: taskDue.value, priority: taskPriority.value, description: taskDescription.value.trim(), status: "todo" }]); drawSubject(); drawUpcoming(); });
+    workspace.appendChild(taskForm);
+    const taskList = el("ul", "feature-list"); klaseTasks().filter((task) => task.subject === subject).forEach((task) => { const item = el("li", `feature-item${task.status === "completed" ? " is-done" : ""}`); const text = el("span", "feature-item-text", task.name); text.appendChild(el("small", "feature-item-meta", [task.due ? `Due ${task.due}` : "No due date", task.priority].join(" · "))); const state = el("select"); [["todo", "To-do"], ["in-progress", "In progress"], ["completed", "Completed"]].forEach(([value, label]) => state.appendChild(new Option(label, value))); state.value = task.status; state.addEventListener("change", () => { writeList(localStorage, "hardin-klase-tasks", klaseTasks().map((entry) => entry.id === task.id ? { ...entry, status: state.value } : entry)); drawSubject(); drawUpcoming(); }); const remove = el("button", "btn danger small", "Delete"); remove.type = "button"; remove.addEventListener("click", () => { writeList(localStorage, "hardin-klase-tasks", klaseTasks().filter((entry) => entry.id !== task.id)); drawSubject(); drawUpcoming(); }); item.append(text, state, remove); taskList.appendChild(item); });
+    if (!taskList.children.length) taskList.appendChild(el("li", "empty-state", "No tasks for this subject yet.")); workspace.appendChild(taskList);
+  };
+  const drawGrades = (workspace, subject) => {
+    const entries = klaseGrades().filter((entry) => entry.subject === subject || entry.code === subject);
+    const scoreForm = el("form", "feature-form subject-form scorebook");
+    scoreForm.appendChild(el("h3", "", subject));
+    const label = el("input"); label.placeholder = "Activity, quiz, project..."; label.required = true;
+    const score = el("input"); score.type = "number"; score.min = "0"; score.step = "any"; score.placeholder = "Score"; score.required = true;
+    const outOf = el("input"); outOf.type = "number"; outOf.min = "1"; outOf.step = "any"; outOf.placeholder = "Out of"; outOf.required = true;
+    const addScore = el("button", "btn primary small", "Add score"); addScore.type = "submit";
+    const row = el("div", "score-entry"); row.append(label, score, outOf, addScore); scoreForm.append(row);
+    scoreForm.addEventListener("submit", (event) => { event.preventDefault(); writeList(localStorage, "hardin-klase-grades", [...klaseGrades(), { id: Date.now().toString(), subject, code: subject, label: label.value.trim(), score: Number(score.value), outOf: Number(outOf.value) }]); label.value = ""; score.value = ""; outOf.value = ""; drawSubject(); });
+    workspace.appendChild(scoreForm);
+    const totalScore = entries.reduce((sum, entry) => sum + Number(entry.score || 0), 0);
+    const totalOutOf = entries.reduce((sum, entry) => sum + Number(entry.outOf || 0), 0);
+    const percent = totalOutOf ? (totalScore / totalOutOf) * 100 : null;
+    const summary = el("div", "grade-summary"); summary.append(el("p", "eyebrow", "Current score"), el("strong", "", percent === null ? "—" : `${percent.toFixed(1)}%`), el("p", "hint", percent === null ? "Add your first score below." : `${totalScore} / ${totalOutOf} total points`)); workspace.appendChild(summary);
+    const table = el("div", "score-table");
+    const headings = el("div", "score-row score-head"); headings.append(el("strong", "", "Score"), el("strong", "", "Points"), el("strong", "", "")); table.appendChild(headings);
+    entries.forEach((entry) => { const scoreRow = el("div", "score-row"); scoreRow.append(el("span", "", entry.label), el("span", "", `${entry.score} / ${entry.outOf}`)); const remove = el("button", "btn danger small", "Delete"); remove.type = "button"; remove.addEventListener("click", () => { writeList(localStorage, "hardin-klase-grades", klaseGrades().filter((saved) => saved.id !== entry.id)); drawSubject(); }); scoreRow.appendChild(remove); table.appendChild(scoreRow); });
+    if (entries.length) workspace.appendChild(table);
+  };
+  const drawManager = () => {
+    const manager = node.querySelector("[data-klase-manager]");
+    manager.replaceChildren(el("h3", "", "Manage classes"));
+    const schedule = klaseSchedule();
+    if (!schedule.length) { manager.appendChild(el("p", "empty-state", "No classes yet.")); return; }
+    schedule.forEach((entry) => {
+      const row = el("div", "manager-row");
+      row.append(el("span", "manager-class", `${entry.day} · ${entry.code || entry.subject} · ${timeText(entry.start)}`));
+      const actions = el("span", "manager-actions");
+      const move = (direction) => { const dayEntries = schedule.filter((saved) => saved.day === entry.day).sort((a, b) => (a.order || 0) - (b.order || 0) || a.start.localeCompare(b.start)); const index = dayEntries.findIndex((saved) => saved.id === entry.id); const swap = dayEntries[index + direction]; if (!swap) return; const currentOrder = entry.order || index; const swapOrder = swap.order || index + direction; writeList(localStorage, "hardin-klase-schedule", schedule.map((saved) => saved.id === entry.id ? { ...saved, order: swapOrder } : saved.id === swap.id ? { ...saved, order: currentOrder } : saved)); draw(); };
+      const up = el("button", "btn ghost small", "Up"); up.type = "button"; up.addEventListener("click", () => move(-1));
+      const down = el("button", "btn ghost small", "Down"); down.type = "button"; down.addEventListener("click", () => move(1));
+      const edit = el("button", "btn ghost small", "Edit"); edit.type = "button"; edit.addEventListener("click", () => { fields.id.value = entry.id; fields.day.value = entry.day; fields.code.value = entry.code || ""; fields.subject.value = entry.subject; fields.units.value = entry.units || ""; fields.start.value = entry.start; fields.end.value = entry.end; fields.room.value = entry.room || ""; fields.teacher.value = entry.teacher || ""; fields.section.value = entry.section || ""; fields.description.value = entry.description || ""; fields.notes.value = entry.notes || ""; node.querySelector("[data-klase-save]").textContent = "Update class"; node.querySelector("[data-klase-cancel]").hidden = false; form.scrollIntoView({ behavior: "smooth", block: "start" }); });
+      const remove = el("button", "btn danger small", "Delete"); remove.type = "button"; remove.addEventListener("click", () => { writeList(localStorage, "hardin-klase-schedule", schedule.filter((saved) => saved.id !== entry.id)); draw(); });
+      actions.append(up, down, edit, remove); row.appendChild(actions); manager.appendChild(row);
+    });
+  };
+  const draw = () => { drawWeek(); drawManager(); drawUpcoming(); drawSubject(); };
+  form.addEventListener("submit", (event) => { event.preventDefault(); const existing = klaseSchedule().find((saved) => saved.id === fields.id.value); const entry = { id: fields.id.value || Date.now().toString(), day: fields.day.value, code: fields.code.value.trim(), subject: fields.subject.value.trim(), units: fields.units.value, start: fields.start.value, end: fields.end.value, room: fields.room.value.trim(), teacher: fields.teacher.value.trim(), section: fields.section.value.trim(), description: fields.description.value.trim(), notes: fields.notes.value.trim(), order: existing ? existing.order : undefined }; const schedule = klaseSchedule().filter((saved) => saved.id !== entry.id); writeList(localStorage, "hardin-klase-schedule", [...schedule, entry]); setPref("hardin-klase-seeded", "1"); status.textContent = "Class saved."; clearForm(); draw(); });
+  node.querySelector("[data-klase-cancel]").addEventListener("click", clearForm); node.querySelector("[data-klase-subject-select]").addEventListener("change", drawSubject); draw();
+  return { node, title: "Klase" };
+}
+
+function pageCycle() {
+  const node = cloneTemplate("tpl-cycle"); const form = node.querySelector("[data-cycle-form]"); const start = node.querySelector("[data-cycle-start]"); const end = node.querySelector("[data-cycle-end]"); const length = node.querySelector("[data-cycle-length]"); const status = node.querySelector("[data-cycle-status]");
+  const draw = () => { const entries = readList(localStorage, "hardin-cycles").sort((a, b) => b.start.localeCompare(a.start)); const list = node.querySelector("[data-cycle-list]"); list.replaceChildren(); if (!entries.length) list.appendChild(el("li", "empty-state", "No cycles recorded yet.")); entries.forEach((entry) => { const item = el("li", "feature-item"); item.append(el("span", "feature-item-text", new Date(`${entry.start}T12:00:00`).toLocaleDateString([], { dateStyle: "medium" })), el("small", "feature-item-meta", `${entry.end ? `Ended ${entry.end}` : "End date not recorded"} · ${entry.length || "No length"} days`)); const remove = el("button", "btn danger small", "Delete"); remove.type = "button"; remove.addEventListener("click", () => { writeList(localStorage, "hardin-cycles", entries.filter((saved) => saved.id !== entry.id)); draw(); }); item.appendChild(remove); list.appendChild(item); }); const latest = entries[0]; const next = node.querySelector("[data-cycle-next]"); if (!latest || !(latest.length || entries[1])) next.textContent = "Not enough history yet"; else { const days = Number(latest.length) || Math.round((new Date(`${latest.start}T12:00:00`) - new Date(`${entries[1].start}T12:00:00`)) / 86400000); const date = new Date(`${latest.start}T12:00:00`); date.setDate(date.getDate() + days); next.textContent = date.toLocaleDateString([], { dateStyle: "long" }); } };
+  form.addEventListener("submit", (event) => { event.preventDefault(); writeList(localStorage, "hardin-cycles", [...readList(localStorage, "hardin-cycles"), { id: Date.now().toString(), start: start.value, end: end.value, length: Number(length.value) || null }]); form.reset(); status.textContent = "Cycle saved privately on this device."; draw(); }); draw(); return { node, title: "Cycle" };
 }
 
 // ---------- Folder page ----------
@@ -744,6 +1183,13 @@ document.addEventListener("keydown", (event) => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
   event.preventDefault();
   $("search").focus();
+});
+
+document.addEventListener("click", (event) => {
+  const menu = document.querySelector(".feature-menu");
+  if (menu && (!menu.contains(event.target) || event.target.closest(".menu-panel a"))) {
+    menu.removeAttribute("open");
+  }
 });
 
 // ---------- Saved for later ----------
@@ -955,6 +1401,51 @@ function pageAbout() {
   return { node, title: "About" };
 }
 
+function pageFocus() {
+  const node = cloneTemplate("tpl-focus");
+  const modeLabel = node.querySelector("[data-focus-mode]");
+  const clock = node.querySelector("[data-focus-clock]");
+  const message = node.querySelector("[data-focus-message]");
+  const start = node.querySelector("[data-focus-start]");
+  const progress = node.querySelector("[data-focus-progress]");
+  const workInput = node.querySelector("[data-focus-work]");
+  const restInput = node.querySelector("[data-focus-rest]");
+  workInput.value = getPref("hardin-focus-work", "25");
+  restInput.value = getPref("hardin-focus-rest", "5");
+  let mode = "work";
+  let seconds = Number(workInput.value) * 60;
+  let running = false;
+  let interval = null;
+
+  const duration = () => Number(mode === "work" ? workInput.value : restInput.value) * 60;
+  const paint = () => {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const remaining = (seconds % 60).toString().padStart(2, "0");
+    clock.textContent = `${minutes}:${remaining}`;
+    modeLabel.textContent = mode === "work" ? "Focus time" : "Rest time";
+    progress.style.width = `${Math.max(0, Math.min(100, ((duration() - seconds) / duration()) * 100))}%`;
+    start.textContent = running ? "Pause" : "Start";
+  };
+  const switchMode = () => {
+    mode = mode === "work" ? "rest" : "work";
+    seconds = duration();
+    message.textContent = mode === "work" ? "Rest finished. Ready for another gentle round?" : "Focus round complete. Take a real pause.";
+    paint();
+  };
+  const stop = () => { if (interval) window.clearInterval(interval); interval = null; running = false; paint(); };
+  const tick = () => { if (seconds <= 0) { switchMode(); return; } seconds -= 1; paint(); };
+  start.addEventListener("click", () => {
+    running = !running;
+    if (running) interval = window.setInterval(tick, 1000);
+    else if (interval) { window.clearInterval(interval); interval = null; }
+    paint();
+  });
+  node.querySelector("[data-focus-reset]").addEventListener("click", () => { stop(); mode = "work"; seconds = duration(); message.textContent = "Ready when you are."; paint(); });
+  [workInput, restInput].forEach((input) => input.addEventListener("change", () => { const value = Math.max(1, Number(input.value) || 1); input.value = value; setPref(input === workInput ? "hardin-focus-work" : "hardin-focus-rest", String(value)); if (!running) { seconds = duration(); paint(); } }));
+  paint();
+  return { node, title: "Focus timer" };
+}
+
 function pageTasks() {
   const node = cloneTemplate("tpl-tasks");
   const tasks = readList(localStorage, "hardin-tasks");
@@ -1128,6 +1619,37 @@ function pageDevotionals() {
     clearForm();
     draw();
   });
+  const prayerMonth = node.querySelector("[data-prayer-month]");
+  const prayerText = node.querySelector("[data-prayer-text]");
+  const prayerStatus = node.querySelector("[data-prayer-status]");
+  prayerMonth.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const loadPrayer = () => { prayerText.value = getPref(`hardin-prayer-${prayerMonth.value}`, ""); };
+  prayerMonth.addEventListener("change", loadPrayer);
+  node.querySelector("[data-save-prayer]").addEventListener("click", () => { setPref(`hardin-prayer-${prayerMonth.value}`, prayerText.value); prayerStatus.textContent = "Saved for this month."; });
+
+  const bibleDate = node.querySelector("[data-bible-date]");
+  const bibleReference = node.querySelector("[data-bible-reference]");
+  const bibleTitle = node.querySelector("[data-bible-title]");
+  const bibleNotes = node.querySelector("[data-bible-notes]");
+  const bibleList = node.querySelector("[data-bible-list]");
+  bibleDate.value = todayKey;
+  const drawBible = () => {
+    const readings = readList(localStorage, "hardin-bible-tracker").sort((a, b) => b.date.localeCompare(a.date));
+    node.querySelector("[data-bible-count]").textContent = `${readings.length} ${readings.length === 1 ? "reading" : "readings"}`;
+    bibleList.replaceChildren();
+    if (!readings.length) bibleList.appendChild(el("li", "empty-state", "No readings tracked yet."));
+    readings.forEach((readingEntry) => {
+      const item = el("li", `feature-item${readingEntry.done ? " is-done" : ""}`);
+      const check = el("input"); check.type = "checkbox"; check.checked = Boolean(readingEntry.done); check.setAttribute("aria-label", `Mark ${readingEntry.reference} complete`);
+      check.addEventListener("change", () => { writeList(localStorage, "hardin-bible-tracker", readList(localStorage, "hardin-bible-tracker").map((entry) => entry.id === readingEntry.id ? { ...entry, done: check.checked } : entry)); drawBible(); });
+      const text = el("span", "feature-item-text", readingEntry.reference); text.appendChild(el("small", "feature-item-meta", `${readingEntry.date}${readingEntry.title ? ` · ${readingEntry.title}` : ""}${readingEntry.notes ? ` · ${readingEntry.notes}` : ""}`));
+      const remove = el("button", "btn danger small", "Delete"); remove.type = "button"; remove.addEventListener("click", () => { writeList(localStorage, "hardin-bible-tracker", readList(localStorage, "hardin-bible-tracker").filter((entry) => entry.id !== readingEntry.id)); drawBible(); });
+      item.append(check, text, remove); bibleList.appendChild(item);
+    });
+  };
+  node.querySelector("[data-bible-form]").addEventListener("submit", (event) => { event.preventDefault(); writeList(localStorage, "hardin-bible-tracker", [...readList(localStorage, "hardin-bible-tracker"), { id: Date.now().toString(), date: bibleDate.value, reference: bibleReference.value.trim(), title: bibleTitle.value.trim(), notes: bibleNotes.value.trim(), done: true }]); event.target.reset(); bibleDate.value = todayKey; drawBible(); });
+  loadPrayer();
+  drawBible();
   draw();
   return { node, title: "Devotionals" };
 }
