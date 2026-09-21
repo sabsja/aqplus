@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin · Haqin</title>
+  <!-- Asks search engines not to list this page -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F5C3E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21v-9'/%3E%3Cpath d='M12 13C7.5 13 5 10.5 5 6.5c4.5 0 7 2.5 7 6.5z' fill='%23A3BC91'/%3E%3Cpath d='M12 11c0-4 2.5-6.5 7-6.5 0 4-2.5 6.5-7 6.5z' fill='%23A3BC91'/%3E%3Cpath d='M8 21h8'/%3E%3C/svg%3E">
+
+  <script>
+    try { if (localStorage.getItem("hardin-theme") === "night") document.documentElement.dataset.theme = "night"; } catch (e) {}
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Young+Serif&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-page">
+
+  <header class="admin-bar">
+    <a href="index.html">View Haqin</a>
+    <button id="logout-btn" class="btn ghost small" type="button" hidden>Log out</button>
+  </header>
+
+  <main class="admin-main">
+
+    <!-- ===== Login (shown when logged out) ===== -->
+    <!-- Shown only if the admin script can't start (see the small script at the bottom) -->
+    <div id="script-warning" class="alert" role="alert" hidden></div>
+
+    <section id="login-section" class="panel narrow">
+      <h1>Admin login</h1>
+      <form id="login-form">
+        <label class="field">
+          <span>Email</span>
+          <input id="login-email" type="email" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input id="login-password" type="password" autocomplete="current-password" required>
+        </label>
+        <label class="check">
+          <input id="show-password" type="checkbox">
+          <span>Show password</span>
+        </label>
+
+        <div class="button-row">
+          <button id="login-btn" class="btn primary" type="submit">Log in</button>
+          <button id="reset-btn" class="btn ghost" type="button">Forgot password?</button>
+        </div>
+
+        <p id="login-error" class="form-message error" role="alert"></p>
+        <ul id="login-help" class="help-list" hidden></ul>
+        <p id="login-code" class="hint" hidden></p>
+        <p id="login-project" class="hint"></p>
+      </form>
+    </section>
+
+    <!-- ===== Everything below only shows after you log in ===== -->
+    <section id="admin-app" hidden>
+
+      <div id="admin-alert" class="alert" role="alert" hidden></div>
+
+      <div class="tabs" role="tablist" aria-label="Admin sections">
+        <button class="tab" type="button" role="tab" data-tab="posts" aria-selected="true">Posts</button>
+        <button class="tab" type="button" role="tab" data-tab="overview" aria-selected="false">Overview</button>
+        <button class="tab" type="button" role="tab" data-tab="folders" aria-selected="false">Folders</button>
+        <button class="tab" type="button" role="tab" data-tab="calendar" aria-selected="false">Calendar</button>
+        <button class="tab" type="button" role="tab" data-tab="settings" aria-selected="false">Settings</button>
+      </div>
+
+      <!-- ================= POSTS ================= -->
+      <div id="tab-posts" class="tab-panel" role="tabpanel">
+
+        <div class="panel">
+          <h1 id="editor-heading">New post</h1>
+
+          <form id="post-form">
+            <label class="field">
+              <span>Title</span>
+              <input id="post-title" type="text" maxlength="120" required>
+            </label>
+
+            <label class="field">
+              <span>Subtitle</span>
+              <input id="post-subtitle" type="text" maxlength="200" placeholder="A short line under the title in the reader">
+            </label>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Folder</span>
+                <select id="post-folder"></select>
+              </label>
+
+              <label class="field">
+                <span>Entry mood</span>
+                <select id="post-mood">
+                  <option value="">No mood</option>
+                  <option value="happy">😃 Happy</option>
+                  <option value="sad">😢 Sad</option>
+                  <option value="upset">😠 Upset</option>
+                  <option value="love">❤️ Love</option>
+                  <option value="praise">🌿 Praise</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Short summary</span>
+              <input id="post-summary" type="text" maxlength="200" placeholder="One or two sentences shown on the card">
+            </label>
+
+            <div class="field">
+              <label for="post-body" class="label-text">Body</label>
+              <div class="toolbar-format" role="toolbar" aria-label="Formatting">
+                <button class="fmt" type="button" data-format="bold" title="Bold"><strong>B</strong></button>
+                <button class="fmt" type="button" data-format="italic" title="Italic"><em>I</em></button>
+                <button class="fmt" type="button" data-format="heading" title="Heading">H</button>
+                <button class="fmt" type="button" data-format="quote" title="Quote">“ ”</button>
+                <button class="fmt" type="button" data-format="list" title="Bullet list">• List</button>
+                <button class="fmt" type="button" data-format="link" title="Link">Link</button>
+              </div>
+              <textarea id="post-body" rows="14" placeholder="Write your article or journal entry. Leave a blank line between paragraphs."></textarea>
+              <small id="word-count">0 words · 1 min read</small>
+            </div>
+
+
+            <label class="field">
+              <span>Embed link</span>
+              <input id="post-embed" type="text" placeholder="Paste a Canva or Google Slides link, or the whole iframe code">
+              <small>Optional. Shows the design or slides inside the post.</small>
+            </label>
+
+            <label class="field">
+              <span>Project link</span>
+              <input id="post-link" type="text" placeholder="https://github.com/you/your-project">
+              <small>Optional. Adds an "Open project" button.</small>
+            </label>
+
+            <label class="field">
+              <span>Cover image link</span>
+              <input id="post-cover" type="text" placeholder="https://… or images/my-cover.png">
+              <small>Optional. Without one, the card gets a colored tile with the folder's icon.</small>
+            </label>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Status</span>
+                <select id="post-status">
+                  <option value="published">Published (visible to everyone)</option>
+                  <option value="draft">Draft (only you can see it)</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="check">
+              <input id="post-pinned" type="checkbox">
+              <span>Feature this post at the top of Haqin</span>
+            </label>
+
+
+            <div class="button-row">
+              <button class="btn primary" type="submit">Save post</button>
+              <button id="cancel-edit" class="btn ghost" type="button" hidden>Cancel editing</button>
+            </div>
+            <p id="form-message" class="form-message" role="status"></p>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>Your posts</h2>
+
+          <div class="list-controls">
+            <label class="searchbox">
+              <span id="admin-search-icon"></span>
+              <input id="admin-search" type="search" placeholder="Search your posts" aria-label="Search your posts" autocomplete="off">
+            </label>
+            <select id="admin-status-filter" aria-label="Filter by status">
+              <option value="all">All posts</option>
+              <option value="published">Published</option>
+              <option value="draft">Drafts</option>
+            </select>
+          </div>
+
+          <p id="list-message" class="form-message" role="status"></p>
+          <ul id="admin-list" class="admin-list"></ul>
+        </div>
+      </div>
+
+      <!-- ================= FOLDERS ================= -->
+      <div id="tab-folders" class="tab-panel" role="tabpanel" hidden>
+        <div class="panel">
+          <h1>Folders</h1>
+          <p class="hint">Folders group your posts and become the menu and breadcrumbs on Haqin. Make a main type, or nest one inside another (for example Journal › School › English).</p>
+
+          <form id="folder-form">
+            <label class="field">
+              <span>Folder name</span>
+              <input id="folder-name" type="text" maxlength="40" required>
+            </label>
+
+            <label class="field">
+              <span>Put it inside</span>
+              <select id="folder-parent"></select>
+            </label>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Icon</span>
+                <input id="folder-icon" type="text" maxlength="4" value="🌿">
+              </label>
+              <label class="field">
+                <span>Color</span>
+                <select id="folder-color"></select>
+              </label>
+            </div>
+            <p class="hint">Icon and color are used by main types. Folders inside them share the same look.</p>
+
+            <div class="button-row">
+              <button class="btn primary" type="submit">Add folder</button>
+              <button id="starter-folders" class="btn ghost" type="button" hidden>Add starter folders</button>
+            </div>
+            <p id="folder-message" class="form-message" role="status"></p>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>Your folders</h2>
+          <ul id="folder-list" class="admin-list"></ul>
+        </div>
+      </div>
+
+      <!-- ================= CALENDAR ================= -->
+      <div id="tab-calendar" class="tab-panel" role="tabpanel" hidden>
+        <div class="panel">
+          <h1 id="event-heading">Calendar events</h1>
+          <p class="hint">Add a note or marker to any date. It shows on the calendar on Haqin, and readers can click the date to see it. Days that have published posts light up on their own.</p>
+
+          <form id="event-form">
+            <div class="field-row">
+              <label class="field">
+                <span>Date</span>
+                <input id="event-date" type="date" required>
+              </label>
+              <label class="field">
+                <span>Marker</span>
+                <input id="event-marker" type="text" maxlength="4" value="📌">
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Title</span>
+              <input id="event-title" type="text" maxlength="80" required>
+            </label>
+
+            <label class="field">
+              <span>Note</span>
+              <textarea id="event-note" rows="3" maxlength="500" placeholder="Optional details readers will see"></textarea>
+            </label>
+
+            <div class="button-row">
+              <button class="btn primary" type="submit">Save event</button>
+              <button id="event-cancel" class="btn ghost" type="button" hidden>Cancel editing</button>
+            </div>
+            <p id="event-message" class="form-message" role="status"></p>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>Your events</h2>
+          <ul id="event-list" class="admin-list"></ul>
+        </div>
+      </div>
+
+      <!-- ================= OVERVIEW ================= -->
+      <div id="tab-overview" class="tab-panel" role="tabpanel" hidden>
+        <div class="panel">
+          <h1>Overview</h1>
+          <div id="overview-stats" class="stat-grid"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Your account</h2>
+          <p id="account-email" class="hint"></p>
+          <p class="hint">Your admin UID. It has to match the one written in firestore.rules, or saving will be refused.</p>
+          <div class="uid-row">
+            <code id="account-uid"></code>
+            <button id="copy-uid" class="btn ghost small" type="button">Copy</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Most viewed</h2>
+          <ul id="overview-viewed" class="admin-list"></ul>
+        </div>
+
+        <div class="panel">
+          <h2>Most loved</h2>
+          <ul id="overview-loved" class="admin-list"></ul>
+        </div>
+      </div>
+
+      <!-- ================= SETTINGS ================= -->
+      <div id="tab-settings" class="tab-panel" role="tabpanel" hidden>
+        <div class="panel">
+          <h1>Settings</h1>
+          <form id="settings-form">
+            <label class="field">
+              <span>Tagline under the title</span>
+              <input id="set-tagline" type="text" maxlength="160" placeholder="Designs, slides, code and journal entries, planted here as I make them.">
+            </label>
+            <label class="field">
+              <span>Announcement</span>
+              <input id="set-announcement" type="text" maxlength="160" placeholder="A short message shown at the top of every page. Leave blank for none.">
+              <small>Visitors can dismiss it, and it comes back whenever you change the words.</small>
+            </label>
+            <label class="field">
+              <span>Announcement link</span>
+              <input id="set-announcement-link" type="text" placeholder="https://… (optional, adds a Read more link)">
+            </label>
+            <label class="field">
+              <span>Default view</span>
+              <select id="set-folder-view">
+                <option value="tiles">Tiles (colored cards)</option>
+                <option value="list">List (slim rows)</option>
+                <option value="accordion">Accordion (folders open and close)</option>
+              </select>
+              <small>How folders and posts are shown to new visitors. They can switch views themselves, and their choice is remembered on their device.</small>
+            </label>
+            <label class="field">
+              <span>About me</span>
+              <textarea id="set-about" rows="7" placeholder="Write your bio. You can use **bold**, *italic* and blank lines between paragraphs."></textarea>
+            </label>
+            <button class="btn primary" type="submit">Save settings</button>
+            <p id="settings-message" class="form-message" role="status"></p>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>Backup</h2>
+          <p class="hint">Download a copy of your folders, posts and calendar events as a JSON file. Keep it somewhere safe.</p>
+          <button id="backup-btn" class="btn ghost" type="button">Download backup</button>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- If admin.js can't start (page opened as a file, or a file is missing), say so instead of failing silently -->
+  <script>
+    (function () {
+      var warn = function (message) {
+        var box = document.getElementById("script-warning");
+        box.textContent = message;
+        box.hidden = false;
+      };
+      if (location.protocol === "file:") {
+        warn("This page was opened as a file. Logging in only works from a web address, like your GitHub Pages site or VS Code's Live Server. Open it that way instead of double-clicking admin.html.");
+      }
+      document.getElementById("login-form").addEventListener("submit", function (event) {
+        if (!window.__adminReady) {
+          event.preventDefault();
+          warn("The admin script didn't start, so logging in can't work yet. Press F12, open the Console tab and read the red error. Most often a file is missing or out of date: upload every file from the latest update (including shared.js and hardin-config.js), then hard refresh with Ctrl+Shift+R.");
+        }
+      });
+    })();
+  </script>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
