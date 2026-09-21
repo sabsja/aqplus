@@ -79,6 +79,20 @@ let navToken = 0;
 let currentRoute = { name: "home", arg: "" };
 let searchText = "";
 let searchUI = null;
+let installPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  installPrompt = event;
+  const button = $("install-app");
+  if (button) button.hidden = false;
+});
+
+window.addEventListener("appinstalled", () => {
+  installPrompt = null;
+  const button = $("install-app");
+  if (button) button.hidden = true;
+});
 
 // ---------- Small storage helpers (a blocked browser never breaks the page) ----------
 function readList(storage, key) {
@@ -1427,6 +1441,14 @@ $("theme-toggle").addEventListener("click", () => {
   else document.documentElement.dataset.theme = "night";
   setPref("hardin-theme", night ? "day" : "night");
   paintTheme();
+});
+
+$("install-app").addEventListener("click", async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $("install-app").hidden = true;
 });
 
 // =========================================================

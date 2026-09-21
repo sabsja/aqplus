@@ -3,7 +3,16 @@
   "short_name": "Haqin",
   "start_url": "./index.html#/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#F8FAF3",
   "theme_color": "#3F5C3E",
-  "description": "Haqin: a quiet home for designs, projects, tasks, prayers, and plans."
+  "description": "Haqin: a quiet home for designs, projects, tasks, prayers, and plans.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

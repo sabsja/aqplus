@@ -1,4 +1,4 @@
-const CACHE_NAME = "haqin-shell-v3";
+const CACHE_NAME = "haqin-shell-v4";
 const SHELL = [
   "./",
   "./index.html",
@@ -7,7 +7,8 @@ const SHELL = [
   "./shared.js",
   "./hardin-config.js",
   "./firebase-config.js",
-  "./manifest.webmanifest"
+  "./manifest.webmanifest",
+  "./icon.svg"
 ];
 
 self.addEventListener("install", (event) => {

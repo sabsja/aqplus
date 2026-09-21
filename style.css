@@ -199,6 +199,7 @@ a { color: var(--accent); }
 .menu-panel strong { padding: 0.25rem 0.5rem 0.45rem; font-size: 0.85rem; color: var(--muted); }
 .menu-panel a { padding: 0.45rem 0.5rem; border: 0; border-radius: 6px; }
 .menu-panel a:hover, .menu-panel a[aria-current="page"] { background: var(--surface-2); border: 0; }
+.install-app { white-space: nowrap; }
 
 /* Thin green line that sweeps across the top when you change page */
 .route-bar {
@@ -1667,6 +1668,9 @@ textarea { resize: vertical; }
   .topbar { flex-wrap: wrap; row-gap: 0.5rem; }
   .searchbox.topsearch { order: 3; flex-basis: 100%; max-width: none; margin-left: 0; }
   .topnav { margin-left: auto; }
+  .topnav { gap: 0.45rem; }
+  .topnav > a { font-size: 0.88rem; }
+  .install-app { display: none; }
 
   .view { padding: 0 1rem 3rem; }
   .hero { flex-direction: column-reverse; align-items: flex-start; padding-top: 1.25rem; }
