@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Young+Serif&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -44,6 +45,16 @@
       <a href="#/" data-nav="home">Home</a>
       <a href="#/about" data-nav="about">About</a>
       <a href="#/saved" data-nav="saved">Saved <span id="saved-count" class="count-badge" hidden>0</span></a>
+      <details class="feature-menu">
+        <summary class="menu-toggle" aria-label="Open features menu">☰</summary>
+        <div class="menu-panel">
+          <strong>My features</strong>
+          <a href="#/tasks" data-nav="tasks">Tasks & reminders</a>
+          <a href="#/wallet" data-nav="wallet">Savings wallet</a>
+          <a href="#/prayer" data-nav="prayer">Prayer wall</a>
+          <a href="#/devotionals" data-nav="devotionals">Devotionals</a>
+        </div>
+      </details>
       <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch to night mode"></button>
     </div>
   </nav>
@@ -235,6 +246,68 @@
     </section>
   </template>
 
+  <!-- ---------- Private features ---------- -->
+  <template id="tpl-tasks">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Tasks</span></nav>
+    <header class="page-head"><h1>Tasks & reminders</h1><p class="page-sub">A small list for today and the things you do not want to forget.</p></header>
+    <section class="feature-layout">
+      <div class="panel">
+        <form data-feature-form="task" class="feature-form">
+          <label class="field"><span>Task</span><input data-task-title type="text" maxlength="120" placeholder="What needs doing?" required></label>
+          <label class="field"><span>Reminder date and time</span><input data-task-due type="datetime-local"></label>
+          <div class="button-row"><button class="btn primary" type="submit">Add task</button><button class="btn ghost" data-notify type="button">Allow notifications</button></div>
+        </form>
+        <p class="hint" data-task-status></p>
+      </div>
+      <div class="panel"><div class="feature-panel-head"><h2>My list</h2><button class="btn ghost small" data-clear-done type="button">Clear done</button></div><ul class="feature-list" data-task-list></ul></div>
+    </section>
+  </template>
+
+  <template id="tpl-wallet">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Wallet</span></nav>
+    <header class="page-head"><h1>Savings wallet</h1><p class="page-sub">Track allowance, savings, wants, and needs in one quiet place.</p></header>
+    <section class="feature-layout">
+      <div class="panel wallet-summary"><p class="eyebrow">Current balance</p><strong data-wallet-balance>$0.00</strong><div class="wallet-breakdown" data-wallet-breakdown></div></div>
+      <div class="panel"><form data-feature-form="wallet" class="feature-form"><div class="field-row"><label class="field"><span>Type</span><select data-wallet-kind><option value="in">Money in</option><option value="out">Money out</option></select></label><label class="field"><span>Category</span><select data-wallet-category><option>Allowance</option><option>Savings</option><option>Wants</option><option>Needs</option></select></label></div><div class="field-row"><label class="field"><span>Amount</span><input data-wallet-amount type="number" min="0" step="0.01" placeholder="0.00" required></label><label class="field"><span>Note</span><input data-wallet-note type="text" maxlength="80" placeholder="Optional"></label></div><button class="btn primary" type="submit">Add entry</button></form></div>
+      <div class="panel"><h2>Recent entries</h2><ul class="feature-list" data-wallet-list></ul></div>
+    </section>
+  </template>
+
+  <template id="tpl-prayer">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Prayer wall</span></nav>
+    <header class="page-head"><h1>Prayer wall</h1><p class="page-sub">Keep a gentle, editable page for each month.</p></header>
+    <section class="panel prayer-panel"><label class="field"><span>Month</span><input data-prayer-month type="month"></label><label class="field"><span>Prayer notes</span><textarea data-prayer-text rows="14" placeholder="Write your prayers, hopes, and gratitude here..."></textarea></label><div class="button-row"><button class="btn primary" data-save-prayer type="button">Save this month</button><span class="hint" data-prayer-status></span></div></section>
+  </template>
+
+  <template id="tpl-devotionals">
+    <nav class="breadcrumbs"><a class="crumb" href="#/">Home</a><span class="crumb-sep">›</span><span class="crumb">Devotionals</span></nav>
+    <header class="page-head"><h1>Devotionals</h1><p class="page-sub">A quiet place to write what you are learning from Scripture.</p></header>
+    <section class="devotional-layout">
+      <article class="panel devotional-today" data-devotional-today>
+        <p class="eyebrow">Today’s devotional</p>
+        <h2 data-today-title>Begin with a reading</h2>
+        <p class="devotional-reference" data-today-reference></p>
+        <p data-today-reading></p>
+        <blockquote data-today-reflection hidden></blockquote>
+        <p class="devotional-prayer" data-today-prayer></p>
+      </article>
+      <section class="panel">
+        <div class="feature-panel-head"><h2 data-devotional-form-title>New devotional</h2><button class="btn ghost small" data-devotional-today-button type="button">Use today</button></div>
+        <form data-feature-form="devotional" class="feature-form">
+          <label class="field"><span>Date</span><input data-devotional-date type="date" required></label>
+          <label class="field"><span>Title</span><input data-devotional-title type="text" maxlength="120" placeholder="What is God teaching me?" required></label>
+          <label class="field"><span>Bible reading or reference</span><input data-devotional-reference type="text" maxlength="120" placeholder="John 15:1-8"></label>
+          <label class="field"><span>Reading notes</span><textarea data-devotional-reading rows="5" placeholder="Write the verse, summary, or key words..."></textarea></label>
+          <label class="field"><span>Reflection</span><textarea data-devotional-reflection rows="5" placeholder="What stood out to me today?"></textarea></label>
+          <label class="field"><span>Prayer</span><textarea data-devotional-prayer rows="4" placeholder="My prayer..."></textarea></label>
+          <div class="button-row"><button class="btn primary" type="submit">Save devotional</button><button class="btn ghost" data-devotional-cancel type="button" hidden>Cancel editing</button></div>
+          <p class="hint" data-devotional-status></p>
+        </form>
+      </section>
+      <section class="panel devotional-history"><div class="feature-panel-head"><h2>My readings</h2><span class="hint" data-devotional-count></span></div><ul class="feature-list" data-devotional-list></ul></section>
+    </section>
+  </template>
+
   <!-- ---------- Page not found ---------- -->
   <template id="tpl-missing">
     <section class="missing">
@@ -244,6 +317,6 @@
     </section>
   </template>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=devotionals1"></script>
 </body>
 </html>

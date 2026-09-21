@@ -192,6 +192,14 @@ a { color: var(--accent); }
 .topnav a:hover { color: var(--accent); border-bottom-color: var(--sage-400); }
 .topnav a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
 
+.feature-menu { position: relative; }
+.menu-toggle { list-style: none; cursor: pointer; padding: 0.15rem 0.35rem; color: var(--accent); font-size: 1.35rem; line-height: 1; }
+.menu-toggle::-webkit-details-marker { display: none; }
+.menu-panel { position: absolute; right: 0; top: calc(100% + 0.7rem); z-index: 30; display: grid; gap: 0.25rem; min-width: 190px; padding: 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow); }
+.menu-panel strong { padding: 0.25rem 0.5rem 0.45rem; font-size: 0.85rem; color: var(--muted); }
+.menu-panel a { padding: 0.45rem 0.5rem; border: 0; border-radius: 6px; }
+.menu-panel a:hover, .menu-panel a[aria-current="page"] { background: var(--surface-2); border: 0; }
+
 /* Thin green line that sweeps across the top when you change page */
 .route-bar {
   position: fixed;
@@ -1256,6 +1264,28 @@ textarea { resize: vertical; }
 
 .page-head { margin: 0.4rem 0 1.5rem; }
 .page-head h1 { margin: 0; font-size: clamp(2rem, 5vw, 3rem); }
+.feature-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; max-width: 900px; margin: 0 auto 3rem; }
+.feature-layout > .panel:last-child { grid-column: 1 / -1; }
+.feature-form { display: grid; gap: 0.8rem; }
+.feature-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.feature-panel-head h2 { margin: 0; }
+.feature-list { display: grid; gap: 0.6rem; padding: 0; margin: 1rem 0 0; list-style: none; }
+.feature-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface-2); }
+.feature-item.is-done .feature-item-text { color: var(--muted); text-decoration: line-through; }
+.feature-item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.feature-item-meta { display: block; margin-top: 0.15rem; color: var(--muted); font-size: 0.82rem; }
+.empty-state { color: var(--muted); }
+.wallet-summary > strong { display: block; margin: 0.2rem 0 1rem; color: var(--accent); font-family: var(--font-display); font-size: 2.6rem; }
+.wallet-breakdown { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.wallet-chip { padding: 0.3rem 0.55rem; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 0.85rem; }
+.prayer-panel { max-width: 760px; margin: 0 auto 3rem; }
+.devotional-layout { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 1rem; max-width: 1000px; margin: 0 auto 3rem; }
+.devotional-today { background: var(--surface-2); }
+.devotional-today h2 { margin: 0.2rem 0 0.35rem; font-family: var(--font-display); font-size: 2rem; }
+.devotional-reference { color: var(--accent); font-weight: 600; }
+.devotional-today blockquote { margin: 1.2rem 0; padding: 0.8rem 1rem; border-left: 3px solid var(--sage-400); color: var(--muted); }
+.devotional-prayer { padding-top: 1rem; border-top: 1px solid var(--line); font-style: italic; }
+.devotional-history { grid-column: 1 / -1; }
 .page-sub { margin: 0.4rem 0 0; color: var(--muted); }
 
 .section-title { margin: 0 0 1rem; font-size: 1.5rem; }
@@ -1646,6 +1676,10 @@ textarea { resize: vertical; }
   .about { grid-template-columns: 1fr; }
   .about-portrait { width: 110px; height: 110px; }
   .about-portrait .icon svg { width: 50px; height: 50px; }
+  .feature-layout { grid-template-columns: 1fr; }
+  .feature-layout > .panel:last-child { grid-column: auto; }
+  .devotional-layout { grid-template-columns: 1fr; }
+  .devotional-history { grid-column: auto; }
 
   .prose { font-size: 1.18rem; }
   .panel { padding: 1.25rem; }

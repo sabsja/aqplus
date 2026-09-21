@@ -256,6 +256,10 @@ function buildPage(r) {
     case "search": return pageSearch();
     case "saved":  return pageSaved();
     case "about":  return pageAbout();
+    case "tasks":  return pageTasks();
+    case "wallet":  return pageWallet();
+    case "prayer":  return pagePrayer();
+    case "devotionals": return pageDevotionals();
     default:       return pageMissing();
   }
 }
@@ -936,6 +940,200 @@ function pageAbout() {
   }
   return { node, title: "About" };
 }
+
+function pageTasks() {
+  const node = cloneTemplate("tpl-tasks");
+  const tasks = readList(localStorage, "hardin-tasks");
+  const list = node.querySelector("[data-task-list]");
+  const status = node.querySelector("[data-task-status]");
+  const draw = () => {
+    list.replaceChildren();
+    const ordered = [...readList(localStorage, "hardin-tasks")].sort((a, b) => Number(a.done) - Number(b.done) || (a.due || "").localeCompare(b.due || ""));
+    if (!ordered.length) list.appendChild(el("li", "empty-state", "No tasks yet."));
+    ordered.forEach((task) => {
+      const item = el("li", `feature-item${task.done ? " is-done" : ""}`);
+      const check = el("input");
+      check.type = "checkbox";
+      check.checked = task.done;
+      check.setAttribute("aria-label", `Mark ${task.title} complete`);
+      check.addEventListener("change", () => {
+        const next = readList(localStorage, "hardin-tasks").map((entry) => entry.id === task.id ? { ...entry, done: check.checked } : entry);
+        writeList(localStorage, "hardin-tasks", next);
+        draw();
+      });
+      const text = el("span", "feature-item-text", task.title);
+      if (task.due) text.appendChild(el("small", "feature-item-meta", new Date(task.due).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })));
+      const remove = el("button", "btn danger small", "Delete");
+      remove.type = "button";
+      remove.addEventListener("click", () => { writeList(localStorage, "hardin-tasks", readList(localStorage, "hardin-tasks").filter((entry) => entry.id !== task.id)); draw(); });
+      item.append(check, text, remove);
+      list.appendChild(item);
+    });
+  };
+  node.querySelector("[data-feature-form=task]").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const title = node.querySelector("[data-task-title]").value.trim();
+    const due = node.querySelector("[data-task-due]").value;
+    writeList(localStorage, "hardin-tasks", [...readList(localStorage, "hardin-tasks"), { id: Date.now().toString(), title, due, done: false }]);
+    event.target.reset();
+    status.textContent = "Task added.";
+    draw();
+  });
+  node.querySelector("[data-clear-done]").addEventListener("click", () => { writeList(localStorage, "hardin-tasks", readList(localStorage, "hardin-tasks").filter((task) => !task.done)); draw(); });
+  node.querySelector("[data-notify]").addEventListener("click", async () => {
+    if (!("Notification" in window)) { status.textContent = "Notifications are not supported in this browser."; return; }
+    const permission = await Notification.requestPermission();
+    status.textContent = permission === "granted" ? "Notifications are on for this browser." : "Notifications were not allowed.";
+  });
+  draw();
+  return { node, title: "Tasks" };
+}
+
+function pageWallet() {
+  const node = cloneTemplate("tpl-wallet");
+  const draw = () => {
+    const entries = readList(localStorage, "hardin-wallet");
+    const balance = entries.reduce((sum, entry) => sum + (entry.kind === "in" ? entry.amount : -entry.amount), 0);
+    node.querySelector("[data-wallet-balance]").textContent = `$${balance.toFixed(2)}`;
+    const totals = {};
+    entries.forEach((entry) => { totals[entry.category] = (totals[entry.category] || 0) + (entry.kind === "in" ? entry.amount : -entry.amount); });
+    node.querySelector("[data-wallet-breakdown]").replaceChildren(...Object.entries(totals).map(([category, total]) => el("span", "wallet-chip", `${category}: $${total.toFixed(2)}`)));
+    const list = node.querySelector("[data-wallet-list]");
+    list.replaceChildren();
+    if (!entries.length) list.appendChild(el("li", "empty-state", "No entries yet."));
+    [...entries].reverse().forEach((entry) => {
+      const item = el("li", "feature-item");
+      item.append(el("span", "feature-item-text", `${entry.kind === "in" ? "+" : "-"}$${entry.amount.toFixed(2)} · ${entry.category}`), el("small", "feature-item-meta", entry.note || ""));
+      const remove = el("button", "btn danger small", "Delete");
+      remove.type = "button";
+      remove.addEventListener("click", () => { writeList(localStorage, "hardin-wallet", entries.filter((saved) => saved.id !== entry.id)); draw(); });
+      item.appendChild(remove);
+      list.appendChild(item);
+    });
+  };
+  node.querySelector("[data-feature-form=wallet]").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const amount = Number(node.querySelector("[data-wallet-amount]").value);
+    const entry = { id: Date.now().toString(), kind: node.querySelector("[data-wallet-kind]").value, category: node.querySelector("[data-wallet-category]").value, amount, note: node.querySelector("[data-wallet-note]").value.trim() };
+    writeList(localStorage, "hardin-wallet", [...readList(localStorage, "hardin-wallet"), entry]);
+    event.target.reset();
+    draw();
+  });
+  draw();
+  return { node, title: "Wallet" };
+}
+
+function pagePrayer() {
+  const node = cloneTemplate("tpl-prayer");
+  const month = node.querySelector("[data-prayer-month]");
+  const text = node.querySelector("[data-prayer-text]");
+  const status = node.querySelector("[data-prayer-status]");
+  const today = new Date();
+  month.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const load = () => { text.value = getPref(`hardin-prayer-${month.value}`, ""); };
+  month.addEventListener("change", load);
+  node.querySelector("[data-save-prayer]").addEventListener("click", () => { setPref(`hardin-prayer-${month.value}`, text.value); status.textContent = "Saved for this month."; });
+  load();
+  return { node, title: "Prayer Wall" };
+}
+
+function pageDevotionals() {
+  const node = cloneTemplate("tpl-devotionals");
+  const form = node.querySelector("[data-feature-form=devotional]");
+  const date = node.querySelector("[data-devotional-date]");
+  const title = node.querySelector("[data-devotional-title]");
+  const reference = node.querySelector("[data-devotional-reference]");
+  const reading = node.querySelector("[data-devotional-reading]");
+  const reflection = node.querySelector("[data-devotional-reflection]");
+  const prayer = node.querySelector("[data-devotional-prayer]");
+  const status = node.querySelector("[data-devotional-status]");
+  const today = new Date();
+  const todayKey = dateKey(today);
+  let editingDate = null;
+
+  const getEntries = () => readList(localStorage, "hardin-devotionals").sort((a, b) => b.date.localeCompare(a.date));
+  const clearForm = () => {
+    form.reset();
+    date.value = todayKey;
+    editingDate = null;
+    node.querySelector("[data-devotional-form-title]").textContent = "New devotional";
+    node.querySelector("[data-devotional-cancel]").hidden = true;
+  };
+  const showEntry = (entry) => {
+    node.querySelector("[data-today-title]").textContent = entry ? entry.title : "Begin with a reading";
+    node.querySelector("[data-today-reference]").textContent = entry ? entry.reference : "Choose a passage and write what you notice.";
+    node.querySelector("[data-today-reading]").textContent = entry ? entry.reading : "Your daily reading notes will appear here.";
+    const reflectionBox = node.querySelector("[data-today-reflection]");
+    reflectionBox.textContent = entry ? entry.reflection : "";
+    reflectionBox.hidden = !entry || !entry.reflection;
+    node.querySelector("[data-today-prayer]").textContent = entry && entry.prayer ? `Prayer: ${entry.prayer}` : "";
+  };
+  const draw = () => {
+    const entries = getEntries();
+    const todayEntry = entries.find((entry) => entry.date === todayKey);
+    showEntry(todayEntry);
+    node.querySelector("[data-devotional-count]").textContent = `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
+    const list = node.querySelector("[data-devotional-list]");
+    list.replaceChildren();
+    if (!entries.length) list.appendChild(el("li", "empty-state", "No devotionals yet."));
+    entries.forEach((entry) => {
+      const item = el("li", "feature-item");
+      const text = el("span", "feature-item-text", entry.title);
+      text.appendChild(el("small", "feature-item-meta", `${new Date(`${entry.date}T12:00:00`).toLocaleDateString([], { dateStyle: "medium" })}${entry.reference ? ` · ${entry.reference}` : ""}`));
+      const edit = el("button", "btn ghost small", "Edit");
+      edit.type = "button";
+      edit.addEventListener("click", () => {
+        editingDate = entry.date;
+        date.value = entry.date;
+        title.value = entry.title;
+        reference.value = entry.reference || "";
+        reading.value = entry.reading || "";
+        reflection.value = entry.reflection || "";
+        prayer.value = entry.prayer || "";
+        node.querySelector("[data-devotional-form-title]").textContent = "Edit devotional";
+        node.querySelector("[data-devotional-cancel]").hidden = false;
+        form.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const remove = el("button", "btn danger small", "Delete");
+      remove.type = "button";
+      remove.addEventListener("click", () => { writeList(localStorage, "hardin-devotionals", entries.filter((saved) => saved.date !== entry.date)); if (editingDate === entry.date) clearForm(); draw(); });
+      item.append(text, edit, remove);
+      list.appendChild(item);
+    });
+  };
+
+  date.value = todayKey;
+  node.querySelector("[data-devotional-today-button]").addEventListener("click", clearForm);
+  node.querySelector("[data-devotional-cancel]").addEventListener("click", clearForm);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const entry = { date: date.value, title: title.value.trim(), reference: reference.value.trim(), reading: reading.value.trim(), reflection: reflection.value.trim(), prayer: prayer.value.trim() };
+    const entries = getEntries().filter((saved) => saved.date !== (editingDate || entry.date));
+    writeList(localStorage, "hardin-devotionals", [...entries, entry]);
+    status.textContent = "Devotional saved.";
+    clearForm();
+    draw();
+  });
+  draw();
+  return { node, title: "Devotionals" };
+}
+
+function checkTaskReminders() {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const notified = new Set(readList(localStorage, "hardin-task-notified"));
+  const now = Date.now();
+  readList(localStorage, "hardin-tasks").forEach((task) => {
+    if (!task.done && task.due && new Date(task.due).getTime() <= now && !notified.has(task.id)) {
+      new Notification("Haqin reminder", { body: task.title });
+      notified.add(task.id);
+    }
+  });
+  writeList(localStorage, "hardin-task-notified", [...notified]);
+}
+
+checkTaskReminders();
+window.setInterval(checkTaskReminders, 30000);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
 function pageMissing() {
   return { node: cloneTemplate("tpl-missing"), title: "Not found" };

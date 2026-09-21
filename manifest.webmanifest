@@ -1,0 +1,9 @@
+{
+  "name": "Haqin",
+  "short_name": "Haqin",
+  "start_url": "./index.html#/",
+  "display": "standalone",
+  "background_color": "#F8FAF3",
+  "theme_color": "#3F5C3E",
+  "description": "Haqin: a quiet home for designs, projects, tasks, prayers, and plans."
+}
